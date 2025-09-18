@@ -88,11 +88,6 @@ const Dashboard = () => {
     return 'text-green-600';
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-xl p-8 shadow-lg">

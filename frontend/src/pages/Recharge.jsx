@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { API_ENDPOINTS } from '../config/config';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Label } from './ui/Label';
-import { Card } from './ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Label } from '../components/ui/Label';
+import { Card } from '../components/ui/Card';
 
 const Recharge = ({ onSuccess, onCancel }) => {
   const { token } = useAuth();
