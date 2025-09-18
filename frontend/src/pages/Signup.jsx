@@ -48,17 +48,24 @@ const Signup = () => {
       return;
     }
 
-    // Validate password length
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    // Validate password length and complexity
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    // Check password complexity (at least one lowercase, uppercase, and number)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+    if (!passwordRegex.test(formData.password)) {
+      setError('Password must contain at least one lowercase letter, one uppercase letter, and one number');
       setIsLoading(false);
       return;
     }
 
     try {
       const result = await signup({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
         email: formData.email,
         password: formData.password
       });
@@ -192,7 +199,7 @@ const Signup = () => {
                     onChange={handleChange}
                     className="pl-10"
                     required
-                    minLength={6}
+                    minLength={8}
                     disabled={isLoading}
                   />
                 </div>
@@ -213,7 +220,7 @@ const Signup = () => {
                     onChange={handleChange}
                     className="pl-10"
                     required
-                    minLength={6}
+                    minLength={8}
                     disabled={isLoading}
                   />
                 </div>

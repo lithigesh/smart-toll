@@ -9,9 +9,9 @@ export const API_ENDPOINTS = {
     register: `${config.apiBaseUrl}/auth/register`,
     login: `${config.apiBaseUrl}/auth/login`,
     logout: `${config.apiBaseUrl}/auth/logout`,
-    profile: `${config.apiBaseUrl}/auth/profile`,
+    profile: `${config.apiBaseUrl}/auth/me`,
     refresh: `${config.apiBaseUrl}/auth/refresh`,
-    changePassword: `${config.apiBaseUrl}/auth/change-password`
+    changePassword: `${config.apiBaseUrl}/auth/password`
   },
   wallet: {
     balance: `${config.apiBaseUrl}/wallet/balance`,

@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
   // Check for existing authentication on app start
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
 
       if (token && storedUser) {
@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const clearAuthStorage = () => {
-    localStorage.removeItem('accessToken');
+    localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
@@ -69,11 +69,11 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.message || data.error || 'Login failed');
       }
 
-      // Store tokens and user data
-      localStorage.setItem('accessToken', data.accessToken);
+      // Store tokens and user data (backend returns 'token' and 'refreshToken')
+      localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
       
@@ -99,12 +99,12 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Signup failed');
+        throw new Error(data.message || data.error || 'Signup failed');
       }
 
       // Auto-login after successful registration if tokens are provided
-      if (data.accessToken && data.refreshToken) {
-        localStorage.setItem('accessToken', data.accessToken);
+      if (data.token && data.refreshToken) {
+        localStorage.setItem('token', data.token);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('user', JSON.stringify(data.user));
         setUser(data.user);
@@ -120,16 +120,16 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      const refreshToken = localStorage.getItem('refreshToken');
+      const token = localStorage.getItem('token');
       
       // Call logout endpoint
-      if (refreshToken) {
+      if (token) {
         await fetch(API_ENDPOINTS.auth.logout, {
           method: 'POST',
           headers: {
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refreshToken }),
+          }
         });
       }
 
@@ -164,12 +164,12 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Update stored tokens
-      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
       
       setUser(data.user);
-      return data.accessToken;
+      return data.token;
 
     } catch (error) {
       console.error('Token refresh failed:', error);
@@ -181,7 +181,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem('token');
       
       const response = await fetch(API_ENDPOINTS.auth.profile, {
         method: 'PUT',
@@ -195,7 +195,7 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Profile update failed');
+        throw new Error(data.message || data.error || 'Profile update failed');
       }
 
       setUser(data.user);
@@ -214,6 +214,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
+    token: localStorage.getItem('token'),
     login,
     signup,
     logout,
