@@ -13,10 +13,6 @@ const supabase = createClient(
   }
 );
 
-console.log('🔧 Initializing Supabase client connection...');
-console.log(`📍 Supabase URL: ${process.env.SUPABASE_URL ? 'Set' : 'Not set'}`);
-console.log(`🔐 Service Role Key: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Set' : 'Not set'}`);
-
 // Helper function to execute raw SQL queries via Supabase RPC
 const query = async (text, params = []) => {
   const start = Date.now();

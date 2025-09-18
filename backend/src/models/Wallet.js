@@ -1,5 +1,18 @@
 const { query, withTransaction } = require('../config/db');
 
+// Import Supabase client
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
 class Wallet {
   /**
    * Create a new wallet for a user
@@ -8,13 +21,14 @@ class Wallet {
    * @returns {Promise<Object>} - Created wallet object
    */
   static async create(userId, initialBalance = 0) {
-    const result = await query(
-      `INSERT INTO wallets (user_id, balance, updated_at)
-       VALUES ($1, $2, NOW())
-       RETURNING id, user_id, balance, updated_at`,
-      [userId, initialBalance]
-    );
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('wallets')
+      .insert({ user_id: userId, balance: initialBalance })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
   }
 
   /**
@@ -23,11 +37,17 @@ class Wallet {
    * @returns {Promise<Object|null>} - Wallet object or null if not found
    */
   static async findByUserId(userId) {
-    const result = await query(
-      'SELECT id, user_id, balance, updated_at FROM wallets WHERE user_id = $1',
-      [userId]
-    );
-    return result.rows[0] || null;
+    const { data, error } = await supabase
+      .from('wallets')
+      .select('id, user_id, balance, updated_at')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+    
+    return data || null;
   }
 
   /**

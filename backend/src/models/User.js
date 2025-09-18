@@ -1,5 +1,18 @@
 const { query, withTransaction } = require('../config/db');
 
+// Import Supabase client
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
 class User {
   /**
    * Create a new user
@@ -11,13 +24,14 @@ class User {
    * @returns {Promise<Object>} - Created user object
    */
   static async create({ name, email, password_hash, role = 'user' }) {
-    const result = await query(
-      `INSERT INTO users (name, email, password_hash, role, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       RETURNING id, name, email, role, created_at`,
-      [name, email, password_hash, role]
-    );
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('users')
+      .insert({ name, email, password_hash, role })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
   }
 
   /**
@@ -26,11 +40,17 @@ class User {
    * @returns {Promise<Object|null>} - User object or null if not found
    */
   static async findByEmail(email) {
-    const result = await query(
-      'SELECT id, name, email, password_hash, role, created_at FROM users WHERE email = $1',
-      [email]
-    );
-    return result.rows[0] || null;
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, email, password_hash, role, created_at')
+      .eq('email', email)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+      throw error;
+    }
+    
+    return data || null;
   }
 
   /**
@@ -39,11 +59,17 @@ class User {
    * @returns {Promise<Object|null>} - User object or null if not found
    */
   static async findById(id) {
-    const result = await query(
-      'SELECT id, name, email, role, created_at FROM users WHERE id = $1',
-      [id]
-    );
-    return result.rows[0] || null;
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, email, role, created_at')
+      .eq('id', id)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+      throw error;
+    }
+    
+    return data || null;
   }
 
   /**
@@ -53,7 +79,7 @@ class User {
    * @returns {Promise<Object>} - Updated user object
    */
   static async update(id, updates) {
-    const allowedFields = ['name', 'email'];
+    const allowedFields = ['name', 'email', 'password_hash'];
     const updateFields = Object.keys(updates).filter(key => allowedFields.includes(key));
     
     if (updateFields.length === 0) {

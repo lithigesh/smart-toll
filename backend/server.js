@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 // Import database configuration
-const { healthCheck } = require('./src/config/db');
+const { healthCheck } = require('./src/db/connection');
 
 // Import middleware
 const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler');
@@ -23,29 +23,11 @@ app.set('trust proxy', 1);
 
 // CORS configuration
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    // In development, allow any origin
-    if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    
-    // In production, specify allowed origins
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      process.env.FRONTEND_URL,
-      'https://your-frontend-domain.com' // Replace with your actual frontend domain
-    ].filter(Boolean);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: process.env.NODE_ENV === 'development' ? true : [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-razorpay-signature']
@@ -53,9 +35,11 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Request logging middleware
+// Request logging middleware (optional - can be removed in production)
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`${req.method} ${req.url}`);
+  }
   next();
 });
 
@@ -116,90 +100,23 @@ app.use(notFoundHandler);
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// Graceful shutdown handler
-const gracefulShutdown = () => {
-  console.log('Received shutdown signal, shutting down gracefully...');
-  
-  server.close(() => {
-    console.log('HTTP server closed');
-    
-    // Close database connections
-    const { pool } = require('./src/config/db');
-    pool.end(() => {
-      console.log('Database connections closed');
-      process.exit(0);
-    });
-  });
-
-  // Force close server after 30 seconds
-  setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
-    process.exit(1);
-  }, 30000);
-};
-
-// Handle graceful shutdown
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  process.exit(1);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
-
 // Start server
 const server = app.listen(PORT, async () => {
-  console.log(`
-🚀 Smart Toll Backend Server Started
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 Environment: ${process.env.NODE_ENV || 'development'}
-🌐 Server URL: http://localhost:${PORT}
-🏥 Health Check: http://localhost:${PORT}/health
-📚 API Docs: http://localhost:${PORT}/
-  `);
+  console.log(`🚀 Smart Toll Server - http://localhost:${PORT}`);
   
-  // Test database connection on startup
-  console.log('🔍 Testing database connection...');
+  // Test database connection
   try {
     const dbHealth = await healthCheck();
     if (dbHealth.status === 'healthy') {
-      console.log('✅ Database connected successfully!');
-      console.log(`📊 Database timestamp: ${dbHealth.timestamp}`);
-      console.log('🎯 Ready to process Smart Toll transactions!');
+      console.log('✅ Database connected');
     } else {
-      console.log('❌ Database connection failed!');
-      console.log(`💥 Error: ${dbHealth.error}`);
-      
-      // Provide specific troubleshooting for DNS errors
-      if (dbHealth.error.includes('ENOTFOUND')) {
-        console.log('\n🔧 DNS Resolution Failed - Troubleshooting:');
-        console.log('   1. Check if your Supabase project is active');
-        console.log('   2. Verify the DATABASE_URL in your .env file');
-        console.log('   3. Log in to Supabase dashboard and check project status');
-        console.log('   4. Ensure your internet connection is working');
-        console.log('   5. Try running: node test-db.js for detailed diagnosis');
-      }
+      console.log('❌ Database failed:', dbHealth.error);
     }
   } catch (error) {
-    console.log('❌ Database connection test failed!');
-    console.log(`💥 Error: ${error.message}`);
-    
-    if (error.message.includes('ENOTFOUND')) {
-      console.log('\n🚨 This appears to be a DNS/Network issue:');
-      console.log('   • Your Supabase project may be paused or deleted');
-      console.log('   • Check your Supabase dashboard');
-      console.log('   • Verify your internet connection');
-    }
+    console.log('❌ Database error:', error.message);
   }
   
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  console.log('🎯 Ready!\n');
 });
 
 module.exports = app;

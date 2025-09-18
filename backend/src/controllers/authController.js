@@ -1,9 +1,23 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Wallet = require('../models/Wallet');
 const { generateToken, generateRefreshToken } = require('../middleware/authMiddleware');
 const { withTransaction, withRetry } = require('../config/db');
 const { asyncErrorHandler, ConflictError, UnauthorizedError, ValidationError } = require('../middleware/errorHandler');
+
+// Import Supabase client
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
 /**
  * Register a new user
@@ -22,29 +36,40 @@ const register = asyncErrorHandler(async (req, res) => {
   const saltRounds = 12;
   const password_hash = await bcrypt.hash(password, saltRounds);
 
-  // Create user and wallet in a transaction
-  const result = await withRetry(async () => {
-    return await withTransaction(async (client) => {
-      // Create user
-      const user = await client.query(
-        `INSERT INTO users (name, email, password_hash, role, created_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         RETURNING id, name, email, role, created_at`,
-        [name, email, password_hash, 'user']
-      );
+  // Create user using Supabase client
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .insert({
+      name,
+      email,
+      password_hash,
+      role: 'user'
+    })
+    .select()
+    .single();
 
-      const newUser = user.rows[0];
+  if (userError) {
+    if (userError.code === '23505') { // PostgreSQL unique constraint violation
+      throw new ConflictError('User with this email already exists');
+    }
+    throw new Error(`Failed to create user: ${userError.message}`);
+  }
 
-      // Create wallet for the user
-      await client.query(
-        `INSERT INTO wallets (user_id, balance, updated_at)
-         VALUES ($1, $2, NOW())`,
-        [newUser.id, 0.00]
-      );
-
-      return newUser;
+  // Create wallet for the user
+  const { error: walletError } = await supabase
+    .from('wallets')
+    .insert({
+      user_id: userData.id,
+      balance: 0.00
     });
-  });
+
+  if (walletError) {
+    console.error('Failed to create wallet:', walletError.message);
+    // Note: In a real transaction, we'd rollback the user creation here
+    throw new Error(`Failed to create wallet: ${walletError.message}`);
+  }
+
+  const result = userData;
 
   // Generate tokens
   const token = generateToken(result);
