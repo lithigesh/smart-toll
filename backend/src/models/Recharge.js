@@ -1,5 +1,18 @@
 const { query, withTransaction } = require('../config/db');
 
+// Import Supabase client
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
 class Recharge {
   /**
    * Create a new recharge record
@@ -22,19 +35,31 @@ class Recharge {
   }
 
   /**
-   * Create recharge record within a transaction
+   * Create recharge record within a transaction (using Supabase)
    * @param {Object} client - Database client (transaction)
    * @param {Object} rechargeData - Recharge data
    * @returns {Promise<Object>} - Created recharge object
    */
   static async createInTransaction(client, { user_id, order_id, payment_id, amount, status = 'created' }) {
-    const result = await client.query(
-      `INSERT INTO recharges (user_id, order_id, payment_id, amount, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       RETURNING id, user_id, order_id, payment_id, amount, status, created_at`,
-      [user_id, order_id, payment_id, amount, status]
-    );
-    return result.rows[0];
+    // Use Supabase client directly since transaction client is mock
+    const { data, error } = await supabase
+      .from('recharges')
+      .insert({
+        user_id,
+        order_id,
+        payment_id,
+        amount,
+        status
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating recharge record:', error);
+      throw new Error(`Failed to create recharge record: ${error.message}`);
+    }
+    
+    return data;
   }
 
   /**

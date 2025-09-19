@@ -1,5 +1,18 @@
 const { query, withTransaction } = require('../config/db');
 
+// Import Supabase client
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
 class Transaction {
   /**
    * Create a new transaction
@@ -23,19 +36,34 @@ class Transaction {
   }
 
   /**
-   * Create transaction within a database transaction
+   * Create transaction within a database transaction (using Supabase)
    * @param {Object} client - Database client (transaction)
    * @param {Object} transactionData - Transaction data
    * @returns {Promise<Object>} - Created transaction object
    */
   static async createInTransaction(client, { user_id, vehicle_id, toll_gate_id, type, amount, balance_after }) {
-    const result = await client.query(
-      `INSERT INTO transactions (user_id, vehicle_id, toll_gate_id, type, amount, balance_after, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
-       RETURNING id, user_id, vehicle_id, toll_gate_id, type, amount, balance_after, timestamp`,
-      [user_id, vehicle_id, toll_gate_id, type, amount, balance_after]
-    );
-    return result.rows[0];
+    // Use Supabase client directly since transaction client is mock
+    // Map 'type' to 'transaction_type' to match schema
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id,
+        vehicle_id,
+        toll_gate_id,
+        amount,
+        transaction_type: type, // Map 'type' to 'transaction_type'
+        status: 'completed'
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating transaction record:', error);
+      throw new Error(`Failed to create transaction record: ${error.message}`);
+    }
+    
+    console.log('Transaction record created successfully:', data);
+    return data;
   }
 
   /**

@@ -21,13 +21,20 @@ class Wallet {
    * @returns {Promise<Object>} - Created wallet object
    */
   static async create(userId, initialBalance = 0) {
+    console.log(`Creating wallet for user ${userId} with initial balance ${initialBalance}`);
+    
     const { data, error } = await supabase
       .from('wallets')
       .insert({ user_id: userId, balance: initialBalance })
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error(`Error creating wallet for user ${userId}:`, error);
+      throw error;
+    }
+    
+    console.log(`Wallet created successfully for user ${userId}:`, data);
     return data;
   }
 
@@ -38,11 +45,11 @@ class Wallet {
    * @param {number} initialBalance - Initial balance (default: 0)
    * @returns {Promise<Object>} - Created wallet object
    */
-  static async createInTransaction(client, userId, initialBalance = 0) {
+  static async createInTransaction(client, userId, initialBalance = 0.00) {
     const result = await client.query(
       `INSERT INTO wallets (user_id, balance) 
        VALUES ($1, $2) 
-       RETURNING id, user_id, balance, updated_at`,
+       RETURNING id, user_id, balance, created_at, updated_at`,
       [userId, initialBalance]
     );
     
@@ -55,6 +62,8 @@ class Wallet {
    * @returns {Promise<Object|null>} - Wallet object or null if not found
    */
   static async findByUserId(userId) {
+    console.log(`Looking for wallet for user: ${userId}`);
+    
     const { data, error } = await supabase
       .from('wallets')
       .select('id, user_id, balance, updated_at')
@@ -62,9 +71,11 @@ class Wallet {
       .single();
     
     if (error && error.code !== 'PGRST116') {
+      console.error(`Error finding wallet for user ${userId}:`, error);
       throw error;
     }
     
+    console.log(`Wallet find result for user ${userId}:`, data || 'No wallet found');
     return data || null;
   }
 
@@ -82,35 +93,62 @@ class Wallet {
   }
 
   /**
-   * Credit amount to wallet (within transaction)
-   * @param {Object} client - Database client (transaction)
+   * Credit amount to wallet (using Supabase operations)
+   * @param {Object} client - Database client (can be transaction or regular)
    * @param {number} userId - User ID
    * @param {number} amount - Amount to credit
    * @returns {Promise<Object>} - Updated wallet with new balance
    */
   static async credit(client, userId, amount) {
-    // Lock the wallet row for update
-    const lockResult = await client.query(
-      'SELECT id, balance FROM wallets WHERE user_id = $1 FOR UPDATE',
-      [userId]
-    );
+    console.log(`Starting credit operation for user ${userId}, amount: ${amount}`);
+    
+    // Use Supabase client directly since transaction client is mock
+    const { data: wallet, error: fetchError } = await supabase
+      .from('wallets')
+      .select('id, user_id, balance, updated_at')
+      .eq('user_id', userId)
+      .single();
 
-    if (lockResult.rows.length === 0) {
-      throw new Error('Wallet not found');
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching wallet for credit:', fetchError);
+      throw new Error(`Failed to fetch wallet: ${fetchError.message}`);
     }
 
-    const wallet = lockResult.rows[0];
+    if (!wallet) {
+      throw new Error('Wallet not found during credit operation');
+    }
 
-    // Update balance
-    const result = await client.query(
-      `UPDATE wallets 
-       SET balance = balance + $1, updated_at = NOW()
-       WHERE user_id = $2
-       RETURNING id, user_id, balance, updated_at`,
-      [amount, userId]
-    );
+    console.log(`Working with wallet:`, { id: wallet.id, currentBalance: wallet.balance });
 
-    return result.rows[0];
+    // Update balance using Supabase
+    const newBalance = parseFloat(wallet.balance) + parseFloat(amount);
+    
+    const { data: updatedWallet, error: updateError } = await supabase
+      .from('wallets')
+      .update({ 
+        balance: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating wallet balance:', updateError);
+      throw new Error(`Failed to update wallet balance: ${updateError.message}`);
+    }
+
+    if (!updatedWallet) {
+      throw new Error('Failed to update wallet balance - no response');
+    }
+
+    console.log('Wallet credited successfully:', {
+      userId,
+      amount,
+      newBalance: updatedWallet.balance
+    });
+
+    return updatedWallet;
   }
 
   /**
@@ -119,7 +157,7 @@ class Wallet {
    * @param {number} userId - User ID
    * @param {number} amount - Amount to debit
    * @returns {Promise<Object>} - Updated wallet with new balance
-   * @throws {Error} - If insufficient balance
+   * @throws {Error} - If insufficient balance or wallet not found
    */
   static async debit(client, userId, amount) {
     // Lock the wallet row for update

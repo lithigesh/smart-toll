@@ -102,6 +102,25 @@ const verifyPayment = asyncErrorHandler(async (req, res) => {
   const order = await fetchOrder(razorpay_order_id);
   const amountInRupees = paiseToRupees(order.amount);
 
+  console.log(`Processing payment verification for user ${userId}, amount: ${amountInRupees}`);
+
+  // Ensure wallet exists before starting transaction
+  let wallet = await Wallet.findByUserId(userId);
+  console.log(`Wallet check result:`, wallet ? 'Found existing wallet' : 'No wallet found');
+  
+  if (!wallet) {
+    console.log(`No wallet found for user ${userId}, creating one...`);
+    try {
+      wallet = await Wallet.create(userId, 0);
+      console.log(`Wallet created successfully for user ${userId}:`, wallet);
+    } catch (error) {
+      console.error(`Failed to create wallet for user ${userId}:`, error);
+      throw new PaymentError('Failed to initialize wallet for payment processing');
+    }
+  } else {
+    console.log(`Using existing wallet for user ${userId}:`, { id: wallet.id, balance: wallet.balance });
+  }
+
   // Process payment in a transaction with retry logic
   const result = await withRetry(async () => {
     return await withTransaction(async (client) => {
@@ -127,44 +146,20 @@ const verifyPayment = asyncErrorHandler(async (req, res) => {
         status: 'captured'
       });
 
-      // Ensure wallet exists or create one within transaction
-      let walletExists = true;
-      try {
-        // Try to lock the wallet to see if it exists
-        const lockResult = await client.query(
-          'SELECT id FROM wallets WHERE user_id = $1 FOR UPDATE',
-          [userId]
-        );
-        
-        if (lockResult.rows.length === 0) {
-          walletExists = false;
-        }
-      } catch (error) {
-        walletExists = false;
-      }
-      
-      if (!walletExists) {
-        console.log(`Creating wallet for user ${userId} as it doesn't exist`);
-        await Wallet.createInTransaction(client, userId, 0);
-      }
-
-      // Credit wallet
+      // Credit wallet (wallet already exists)
       const updatedWallet = await Wallet.credit(client, userId, amountInRupees);
+      
+      if (!updatedWallet || updatedWallet.balance === undefined) {
+        throw new Error('Failed to credit wallet - invalid response');
+      }
 
-      // Create transaction record
-      const transaction = await Transaction.createInTransaction(client, {
-        user_id: userId,
-        vehicle_id: null,
-        toll_gate_id: null,
-        type: 'recharge',
-        amount: amountInRupees,
-        balance_after: updatedWallet.balance
-      });
+      // Note: For recharges, we don't create transaction records
+      // Recharges are tracked in the recharges table
+      // Transactions table is only for toll deductions
 
       return {
         alreadyProcessed: false,
         recharge,
-        transaction,
         newBalance: updatedWallet.balance
       };
     });
@@ -184,7 +179,6 @@ const verifyPayment = asyncErrorHandler(async (req, res) => {
     success: true,
     message: 'Payment verified and wallet credited successfully',
     recharge_id: result.recharge.id,
-    transaction_id: result.transaction.id,
     new_balance: parseFloat(result.newBalance),
     amount_credited: amountInRupees,
     payment_details: {
