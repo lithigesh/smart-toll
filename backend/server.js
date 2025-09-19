@@ -14,6 +14,10 @@ const paymentRoutes = require('./src/routes/payment');
 const tollRoutes = require('./src/routes/toll');
 const walletRoutes = require('./src/routes/wallet');
 const dashboardRoutes = require('./src/routes/dashboard');
+const gpsRoutes = require('./src/routes/gps');
+const distanceRoutes = require('./src/routes/distance');
+const tollProcessingRoutes = require('./src/routes/toll-processing');
+const notificationsRoutes = require('./src/routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,12 +40,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Request logging middleware (optional - can be removed in production)
-app.use((req, res, next) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`${req.method} ${req.url}`);
-  }
-  next();
-});
+// app.use((req, res, next) => {
+//   if (process.env.NODE_ENV === 'development') {
+//     console.log(`${req.method} ${req.url}`);
+//   }
+//   next();
+// });
 
 // Parse JSON for most routes
 app.use('/api', express.json({ limit: '10mb' }));
@@ -75,22 +79,27 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/toll', tollRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/gps', gpsRoutes);
+app.use('/api/distance', distanceRoutes);
+app.use('/api/toll-processing', tollProcessingRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
     message: 'Smart Toll Backend API',
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       health: '/health',
       auth: '/api/auth',
       payment: '/api/payment',
       toll: '/api/toll',
       wallet: '/api/wallet',
-      dashboard: '/api/dashboard'
-    },
-    docs: 'https://github.com/your-repo/smart-toll-backend' // Replace with actual docs URL
+      dashboard: '/api/dashboard',
+      gps: '/api/gps',
+      distance: '/api/distance',
+      tollProcessing: '/api/toll-processing',
+      notifications: '/api/notifications'
+    }
   });
 });
 

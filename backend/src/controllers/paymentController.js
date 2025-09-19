@@ -143,7 +143,7 @@ const verifyPayment = asyncErrorHandler(async (req, res) => {
         order_id: razorpay_order_id,
         payment_id: razorpay_payment_id,
         amount: amountInRupees,
-        status: 'captured'
+        status: 'paid'
       });
 
       // Credit wallet (wallet already exists)
@@ -266,8 +266,8 @@ const handlePaymentCaptured = async (payment) => {
   }
 
   // Skip if already processed
-  if (existingRecharge.status === 'captured') {
-    console.log(`Payment ${paymentId} already captured`);
+  if (existingRecharge.status === 'paid') {
+    console.log(`Payment ${paymentId} already paid`);
     return;
   }
 
@@ -275,7 +275,7 @@ const handlePaymentCaptured = async (payment) => {
   await withRetry(async () => {
     return await withTransaction(async (client) => {
       // Update recharge status
-      await Recharge.updateStatusInTransaction(client, existingRecharge.id, 'captured');
+      await Recharge.updateStatusInTransaction(client, existingRecharge.id, 'paid');
 
       // Credit wallet if not already done
       const wallet = await Wallet.findByUserId(existingRecharge.user_id);
@@ -348,8 +348,8 @@ const getPaymentHistory = asyncErrorHandler(async (req, res) => {
   res.json({
     recharges: recharges.map(recharge => ({
       id: recharge.id,
-      order_id: recharge.order_id,
-      payment_id: recharge.payment_id,
+      order_id: recharge.razorpay_order_id,
+      payment_id: recharge.razorpay_payment_id,
       amount: parseFloat(recharge.amount),
       amount_formatted: `₹${recharge.amount}`,
       status: recharge.status,
@@ -401,8 +401,8 @@ const getPaymentDetails = asyncErrorHandler(async (req, res) => {
   res.json({
     recharge: {
       id: recharge.id,
-      order_id: recharge.order_id,
-      payment_id: recharge.payment_id,
+      order_id: recharge.razorpay_order_id,
+      payment_id: recharge.razorpay_payment_id,
       amount: parseFloat(recharge.amount),
       amount_formatted: `₹${recharge.amount}`,
       status: recharge.status,

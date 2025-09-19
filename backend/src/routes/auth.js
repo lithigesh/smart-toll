@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 
-// Import controllers
 const {
   register,
   login,
@@ -14,7 +13,6 @@ const {
   verifyEmail
 } = require('../controllers/authController');
 
-// Import middleware
 const { authMiddleware } = require('../middleware/authMiddleware');
 const {
   validateUserRegistration,
@@ -23,27 +21,10 @@ const {
 } = require('../middleware/validate');
 const { body } = require('express-validator');
 
-// Public routes (no authentication required)
-
-/**
- * @route   POST /api/auth/register
- * @desc    Register a new user
- * @access  Public
- */
 router.post('/register', validateUserRegistration, register);
 
-/**
- * @route   POST /api/auth/login
- * @desc    Login user
- * @access  Public
- */
 router.post('/login', validateUserLogin, login);
 
-/**
- * @route   POST /api/auth/refresh
- * @desc    Refresh access token
- * @access  Public
- */
 router.post('/refresh', [
   body('refreshToken')
     .notEmpty()
@@ -51,11 +32,6 @@ router.post('/refresh', [
   handleValidationErrors
 ], refreshToken);
 
-/**
- * @route   POST /api/auth/forgot-password
- * @desc    Initiate password reset
- * @access  Public
- */
 router.post('/forgot-password', [
   body('email')
     .isEmail()
@@ -64,11 +40,6 @@ router.post('/forgot-password', [
   handleValidationErrors
 ], forgotPassword);
 
-/**
- * @route   POST /api/auth/verify-email
- * @desc    Verify email address
- * @access  Public
- */
 router.post('/verify-email', [
   body('token')
     .notEmpty()
@@ -76,20 +47,8 @@ router.post('/verify-email', [
   handleValidationErrors
 ], verifyEmail);
 
-// Protected routes (authentication required)
-
-/**
- * @route   GET /api/auth/me
- * @desc    Get current user profile
- * @access  Private
- */
 router.get('/me', authMiddleware, getProfile);
 
-/**
- * @route   PUT /api/auth/profile
- * @desc    Update user profile
- * @access  Private
- */
 router.put('/profile', authMiddleware, [
   body('name')
     .optional()
@@ -108,11 +67,6 @@ router.put('/profile', authMiddleware, [
   handleValidationErrors
 ], updateProfile);
 
-/**
- * @route   PUT /api/auth/password
- * @desc    Change user password
- * @access  Private
- */
 router.put('/password', authMiddleware, [
   body('currentPassword')
     .notEmpty()
@@ -135,11 +89,6 @@ router.put('/password', authMiddleware, [
   handleValidationErrors
 ], changePassword);
 
-/**
- * @route   POST /api/auth/logout
- * @desc    Logout user
- * @access  Private
- */
 router.post('/logout', authMiddleware, logout);
 
 module.exports = router;
