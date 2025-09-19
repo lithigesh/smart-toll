@@ -40,10 +40,22 @@ const Recharge = () => {
 
   const initializeRazorpay = () => {
     return new Promise((resolve) => {
+      // Check if Razorpay is already loaded
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
+      script.onload = () => {
+        console.log('Razorpay SDK loaded successfully');
+        resolve(true);
+      };
+      script.onerror = () => {
+        console.error('Failed to load Razorpay SDK');
+        resolve(false);
+      };
       document.body.appendChild(script);
     });
   };
@@ -90,6 +102,7 @@ const Recharge = () => {
         currency: orderData.currency,
         name: 'Smart Toll System',
         description: `Wallet Recharge - ₹${amount}`,
+        image: '/logo.png', // Add your logo here if available
         order_id: orderData.orderId,
         handler: async (response) => {
           await verifyPayment(response);
@@ -105,14 +118,31 @@ const Recharge = () => {
         },
         modal: {
           ondismiss: () => {
+            console.log('Payment popup closed by user');
             setIsLoading(false);
             setStep('amount');
-            setError('Payment cancelled');
-          }
-        }
+            setError('Payment cancelled by user');
+          },
+          escape: true,
+          backdropclose: false
+        },
+        retry: {
+          enabled: true
+        },
+        timeout: 300, // 5 minutes timeout
+        remember_customer: false
       };
 
       const razorpay = new window.Razorpay(options);
+      
+      // Handle payment failure
+      razorpay.on('payment.failed', function (response) {
+        console.error('Payment failed:', response.error);
+        setError(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        setIsLoading(false);
+        setStep('amount');
+      });
+
       razorpay.open();
 
     } catch (err) {
@@ -125,6 +155,9 @@ const Recharge = () => {
 
   const verifyPayment = async (paymentData) => {
     try {
+      setStep('processing');
+      console.log('Verifying payment:', paymentData);
+      
       const verifyResponse = await fetch(API_ENDPOINTS.payment.verify, {
         method: 'POST',
         headers: {
@@ -144,19 +177,19 @@ const Recharge = () => {
       }
 
       const verifyData = await verifyResponse.json();
-      console.log('Payment verified:', verifyData);
+      console.log('Payment verified successfully:', verifyData);
       
       setStep('success');
       setIsLoading(false);
       
-      // Call success callback with the new balance
+      // Redirect to dashboard after showing success
       setTimeout(() => {
         navigate('/dashboard');
-      }, 2000);
+      }, 3000); // Increased timeout to show success message
 
     } catch (err) {
       console.error('Payment verification error:', err);
-      setError(err.message || 'Payment verification failed');
+      setError(err.message || 'Payment verification failed. Please contact support if amount was deducted.');
       setIsLoading(false);
       setStep('amount');
     }
@@ -247,6 +280,9 @@ const Recharge = () => {
           Don't close this window until payment is complete
         </p>
       </div>
+      <div className="text-xs text-gray-500">
+        Powered by Razorpay - Secure Payment Gateway
+      </div>
     </div>
   );
 
@@ -263,8 +299,11 @@ const Recharge = () => {
       </p>
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <p className="text-green-800 text-sm">
-          Your wallet will be updated shortly
+          Your wallet balance will be updated shortly
         </p>
+      </div>
+      <div className="text-xs text-gray-500">
+        You will be redirected to dashboard in a few seconds...
       </div>
     </div>
   );

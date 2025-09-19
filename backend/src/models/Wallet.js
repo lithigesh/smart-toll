@@ -32,6 +32,24 @@ class Wallet {
   }
 
   /**
+   * Create a new wallet for a user within a transaction
+   * @param {Object} client - Database client (transaction)
+   * @param {number} userId - User ID
+   * @param {number} initialBalance - Initial balance (default: 0)
+   * @returns {Promise<Object>} - Created wallet object
+   */
+  static async createInTransaction(client, userId, initialBalance = 0) {
+    const result = await client.query(
+      `INSERT INTO wallets (user_id, balance) 
+       VALUES ($1, $2) 
+       RETURNING id, user_id, balance, updated_at`,
+      [userId, initialBalance]
+    );
+    
+    return result.rows[0];
+  }
+
+  /**
    * Get wallet by user ID
    * @param {number} userId - User ID
    * @returns {Promise<Object|null>} - Wallet object or null if not found

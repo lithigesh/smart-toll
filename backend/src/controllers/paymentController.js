@@ -29,8 +29,22 @@ const createPaymentOrder = asyncErrorHandler(async (req, res) => {
     throw new ValidationError('Amount must be between ₹1 and ₹50,000');
   }
 
-  // Generate unique receipt ID
-  const receipt = `order_${userId}_${Date.now()}`;
+  // Generate unique receipt ID (max 40 chars for Razorpay)
+  const timestamp = Date.now().toString(36); // Convert to base36 for shorter string
+  const userIdShort = userId.substring(0, 8); // First 8 chars of userId
+  let receipt = `ord_${userIdShort}_${timestamp}`;
+  
+  // Validate receipt length
+  if (receipt.length > 40) {
+    console.warn(`Receipt too long: ${receipt} (${receipt.length} chars)`);
+    // Fallback to even shorter format
+    receipt = `${userIdShort}_${timestamp}`;
+    console.log(`Using shorter receipt: ${receipt} (${receipt.length} chars)`);
+  }
+  
+  console.log(`Generated receipt: ${receipt} (${receipt.length} chars)`);
+  
+  console.log(`Generated receipt: ${receipt} (${receipt.length} chars)`);
 
   // Create Razorpay order
   const order = await createOrder({
@@ -112,6 +126,27 @@ const verifyPayment = asyncErrorHandler(async (req, res) => {
         amount: amountInRupees,
         status: 'captured'
       });
+
+      // Ensure wallet exists or create one within transaction
+      let walletExists = true;
+      try {
+        // Try to lock the wallet to see if it exists
+        const lockResult = await client.query(
+          'SELECT id FROM wallets WHERE user_id = $1 FOR UPDATE',
+          [userId]
+        );
+        
+        if (lockResult.rows.length === 0) {
+          walletExists = false;
+        }
+      } catch (error) {
+        walletExists = false;
+      }
+      
+      if (!walletExists) {
+        console.log(`Creating wallet for user ${userId} as it doesn't exist`);
+        await Wallet.createInTransaction(client, userId, 0);
+      }
 
       // Credit wallet
       const updatedWallet = await Wallet.credit(client, userId, amountInRupees);
