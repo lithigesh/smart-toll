@@ -4,6 +4,7 @@ import ProtectedRoute from './pages/ProtectedRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import Recharge from './pages/Recharge';
 
 function App() {
   return (
@@ -19,6 +20,12 @@ function App() {
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/recharge" element={
+              <ProtectedRoute>
+                <Recharge />
               </ProtectedRoute>
             } />
             

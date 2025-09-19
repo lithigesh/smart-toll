@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { API_ENDPOINTS } from '../config/config';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Card } from '../components/ui/Card';
+import { ArrowLeft, CreditCard, Wallet } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const Recharge = ({ onSuccess, onCancel }) => {
+const Recharge = () => {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -141,18 +144,14 @@ const Recharge = ({ onSuccess, onCancel }) => {
       }
 
       const verifyData = await verifyResponse.json();
+      console.log('Payment verified:', verifyData);
       
       setStep('success');
       setIsLoading(false);
       
       // Call success callback with the new balance
       setTimeout(() => {
-        onSuccess && onSuccess({
-          amount: parseFloat(amount),
-          newBalance: verifyData.new_balance,
-          rechargeId: verifyData.recharge_id,
-          transactionId: verifyData.transaction_id
-        });
+        navigate('/dashboard');
       }, 2000);
 
     } catch (err) {
@@ -165,11 +164,6 @@ const Recharge = ({ onSuccess, onCancel }) => {
 
   const renderAmountStep = () => (
     <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Recharge Wallet</h2>
-        <p className="text-gray-600">Add money to your Smart Toll wallet</p>
-      </div>
-
       {/* Quick Amount Buttons */}
       <div>
         <Label className="text-sm font-medium text-gray-700 mb-3 block">
@@ -223,7 +217,7 @@ const Recharge = ({ onSuccess, onCancel }) => {
         <Button
           variant="outline"
           className="flex-1"
-          onClick={onCancel}
+          onClick={() => navigate('/dashboard')}
           disabled={isLoading}
         >
           Cancel
@@ -276,11 +270,40 @@ const Recharge = ({ onSuccess, onCancel }) => {
   );
 
   return (
-    <Card className="w-full max-w-md mx-auto p-6">
-      {step === 'amount' && renderAmountStep()}
-      {step === 'processing' && renderProcessingStep()}
-      {step === 'success' && renderSuccessStep()}
-    </Card>
+    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/dashboard')}
+            className="mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Wallet className="h-8 w-8 text-blue-600" />
+            Recharge Wallet
+          </h1>
+          <p className="text-gray-600 mt-2">Add money to your Smart Toll wallet securely</p>
+        </div>
+
+        {/* Recharge Card */}
+        <Card className="w-full max-w-md mx-auto p-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm mb-4">
+              {error}
+            </div>
+          )}
+          
+          {step === 'amount' && renderAmountStep()}
+          {step === 'processing' && renderProcessingStep()}
+          {step === 'success' && renderSuccessStep()}
+        </Card>
+      </div>
+    </div>
   );
 };
 

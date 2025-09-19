@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -35,7 +35,7 @@ const Login = () => {
       } else {
         setError(result.error || 'Login failed');
       }
-    } catch (error) {
+    } catch{
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
