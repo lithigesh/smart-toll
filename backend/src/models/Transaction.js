@@ -17,22 +17,52 @@ class Transaction {
   /**
    * Create a new transaction
    * @param {Object} transactionData - Transaction data
-   * @param {number} transactionData.user_id - User ID
-   * @param {number} transactionData.vehicle_id - Vehicle ID (nullable for recharges)
-   * @param {number} transactionData.toll_gate_id - Toll gate ID (nullable for recharges)
-   * @param {string} transactionData.type - Transaction type ('recharge' or 'deduction')
+   * @param {string} transactionData.user_id - User ID
+   * @param {string} transactionData.vehicle_id - Vehicle ID (nullable for recharges)
+   * @param {string} transactionData.toll_gate_id - Toll gate ID (will be stored as reference_id) 
+   * @param {string} transactionData.transaction_type - Transaction type ('toll_deduction' -> 'toll_charge')
    * @param {number} transactionData.amount - Transaction amount
-   * @param {number} transactionData.balance_after - Balance after transaction
+   * @param {string} transactionData.status - Transaction status ('completed', 'failed', 'pending')
+   * @param {string} transactionData.description - Transaction description
    * @returns {Promise<Object>} - Created transaction object
    */
-  static async create({ user_id, vehicle_id, toll_gate_id, type, amount, balance_after }) {
-    const result = await query(
-      `INSERT INTO transactions (user_id, vehicle_id, toll_gate_id, type, amount, balance_after, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
-       RETURNING id, user_id, vehicle_id, toll_gate_id, type, amount, balance_after, timestamp`,
-      [user_id, vehicle_id, toll_gate_id, type, amount, balance_after]
-    );
-    return result.rows[0];
+  static async create({ user_id, vehicle_id, toll_gate_id, transaction_type, amount, status = 'completed', description = null }) {
+    console.log('🔧 Creating transaction with:', { user_id, vehicle_id, toll_gate_id, transaction_type, amount, status });
+    
+    // Map transaction_type to the schema's allowed values
+    const typeMapping = {
+      'toll_deduction': 'toll_charge',
+      'recharge': 'recharge',
+      'refund': 'refund'
+    };
+    
+    const mappedType = typeMapping[transaction_type] || 'toll_charge';
+    
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id,
+        vehicle_id,
+        amount,
+        type: mappedType,
+        status: status,
+        reference_id: toll_gate_id, // Store toll_gate_id as reference_id
+        description: description || `${mappedType} transaction`,
+        metadata: {
+          toll_gate_id: toll_gate_id,
+          transaction_type: transaction_type
+        }
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Error creating transaction:', error);
+      throw new Error(`Failed to create transaction: ${error.message}`);
+    }
+    
+    console.log('✅ Transaction created successfully:', data);
+    return data;
   }
 
   /**

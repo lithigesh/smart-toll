@@ -28,12 +28,12 @@ INSERT INTO wallets (id, user_id, balance) VALUES
 -- SAMPLE VEHICLES
 -- =============================================
 
-INSERT INTO vehicles (id, user_id, license_plate, vehicle_type, model) VALUES 
-('750e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'ABC123', 'car', 'Honda Civic'),
-('750e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'XYZ789', 'truck', 'Ford F-150'),
-('750e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440003', 'ADM001', 'car', 'Tesla Model S'),
-('750e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440004', 'DEF456', 'motorcycle', 'Yamaha R1'),
-('750e8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440005', 'GHI789', 'car', 'Toyota Camry');
+INSERT INTO vehicles (id, user_id, license_plate, vehicle_type, model, is_active) VALUES 
+('750e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'ABC123', 'car', 'Honda Civic', true),
+('750e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'XYZ789', 'truck', 'Ford F-150', true),
+('750e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440003', 'ADM001', 'car', 'Tesla Model S', true),
+('750e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440004', 'DEF456', 'motorcycle', 'Yamaha R1', true),
+('750e8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440005', 'GHI789', 'car', 'Toyota Camry', true);
 
 -- =============================================
 -- SAMPLE TOLL ROAD ZONES (Using realistic coordinates)
