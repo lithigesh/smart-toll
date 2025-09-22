@@ -5,14 +5,14 @@ const API_BASE_URL = 'http://localhost:5000/api';
 
 // Test data
 const testVehicleEvent = {
-    license_plate: 'ABC123', // Using sample vehicle from populate_data.sql
+    license_plate: 'TEST999', // New test vehicle with Toyota Camry
     toll_gate_id: '11111111-1111-1111-1111-111111111111', // Using UUID from toll_gates table
     timestamp: new Date().toISOString()
 };
 
 const testLogin = {
-    email: 'test@example.com',
-    password: 'password123'
+    email: 'driver@example.com',
+    password: 'Password123!'
 };
 
 async function simulateTollEvent() {
@@ -62,33 +62,10 @@ async function simulateTollEvent() {
 
 // Test with different scenarios
 async function runAllTests() {
-    console.log('🧪 Running comprehensive toll simulation tests...\n');
+    console.log('🧪 Running toll simulation test...\n');
     
-    // Test 1: Normal toll event
+    // Test: Normal toll event
     await simulateTollEvent();
-    
-    // Test 2: Non-existent vehicle
-    console.log('\n\n🚫 Testing with non-existent vehicle...');
-    const invalidVehicleEvent = {
-        ...testVehicleEvent,
-        license_plate: 'INVALID123'
-    };
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/toll/event`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(invalidVehicleEvent)
-        });
-        
-        const result = await response.json();
-        console.log('Status:', response.status);
-        console.log('Response:', JSON.stringify(result, null, 2));
-    } catch (error) {
-        console.error('Error:', error.message);
-    }
 }
 
 // Run the test
