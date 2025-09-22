@@ -30,7 +30,7 @@ const handleTollEvent = asyncErrorHandler(async (req, res) => {
     // 1. Find vehicle and its owner
     const { data: vehicles, error: vehicleError } = await supabase
       .from('vehicles')
-      .select('id, user_id, license_plate, make, model')
+      .select('id, user_id, license_plate, vehicle_type, model')
       .eq('license_plate', license_plate.toUpperCase())
       .eq('is_active', true)
       .single();
@@ -90,7 +90,7 @@ const handleTollEvent = asyncErrorHandler(async (req, res) => {
           shortfall: charge - currentBalance,
           vehicle: {
             license_plate: vehicle.license_plate,
-            make: vehicle.make,
+            vehicle_type: vehicle.vehicle_type,
             model: vehicle.model
           },
           toll_gate: {
@@ -135,6 +135,15 @@ const handleTollEvent = asyncErrorHandler(async (req, res) => {
     });
 
     // Create toll passage record
+    console.log('🔧 Creating toll passage with data:', {
+      user_id: vehicle.user_id,
+      vehicle_id: vehicle.id,
+      toll_gate_id: toll_gate_id,
+      charge: charge,
+      balance_after: newBalance,
+      passage_timestamp: timestamp || new Date().toISOString()
+    });
+
     const tollPassage = await TollPassage.create({
       user_id: vehicle.user_id,
       vehicle_id: vehicle.id,
@@ -143,6 +152,12 @@ const handleTollEvent = asyncErrorHandler(async (req, res) => {
       balance_after: newBalance,
       passage_timestamp: timestamp || new Date().toISOString()
     });
+
+    console.log('🔧 TollPassage.create() returned:', tollPassage);
+    
+    if (!tollPassage) {
+      throw new Error('TollPassage.create() returned undefined or null');
+    }
 
     console.log('✅ Toll crossing processed successfully:', {
       vehicle_license: vehicle.license_plate,
@@ -174,7 +189,7 @@ const handleTollEvent = asyncErrorHandler(async (req, res) => {
         },
         vehicle: {
           license_plate: vehicle.license_plate,
-          make: vehicle.make,
+          vehicle_type: vehicle.vehicle_type,
           model: vehicle.model
         },
         wallet: {

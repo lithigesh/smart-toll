@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     license_plate TEXT UNIQUE NOT NULL,
     vehicle_type TEXT DEFAULT 'car',
     model TEXT,
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
