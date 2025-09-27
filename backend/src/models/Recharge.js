@@ -26,9 +26,9 @@ class Recharge {
    */
   static async create({ user_id, order_id, payment_id, amount, status = 'created' }) {
     const result = await query(
-      `INSERT INTO recharges (user_id, razorpay_order_id, razorpay_payment_id, amount, status, created_at)
+      `INSERT INTO recharges (user_id, gateway_order_id, gateway_payment_id, amount, status, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
-       RETURNING id, user_id, razorpay_order_id, razorpay_payment_id, amount, status, created_at`,
+       RETURNING id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at`,
       [user_id, order_id, payment_id, amount, status]
     );
     return result.rows[0];
@@ -46,8 +46,8 @@ class Recharge {
       .from('recharges')
       .insert({
         user_id,
-        razorpay_order_id: order_id,
-        razorpay_payment_id: payment_id,
+        gateway_order_id: order_id,
+        gateway_payment_id: payment_id,
         amount,
         status
       })
@@ -69,7 +69,7 @@ class Recharge {
    */
   static async findByPaymentId(paymentId) {
     const result = await query(
-      'SELECT id, user_id, razorpay_order_id, razorpay_payment_id, amount, status, created_at FROM recharges WHERE razorpay_payment_id = $1',
+      'SELECT id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at FROM recharges WHERE gateway_payment_id = $1',
       [paymentId]
     );
     return result.rows[0] || null;
@@ -82,7 +82,7 @@ class Recharge {
    */
   static async findByOrderId(orderId) {
     const result = await query(
-      'SELECT id, user_id, razorpay_order_id, razorpay_payment_id, amount, status, created_at FROM recharges WHERE razorpay_order_id = $1',
+      'SELECT id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at FROM recharges WHERE gateway_order_id = $1',
       [orderId]
     );
     return result.rows[0] || null;
@@ -96,7 +96,7 @@ class Recharge {
    */
   static async findByPaymentIdInTransaction(client, paymentId) {
     const result = await client.query(
-      'SELECT id, user_id, razorpay_order_id, razorpay_payment_id, amount, status, created_at FROM recharges WHERE razorpay_payment_id = $1',
+      'SELECT id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at FROM recharges WHERE gateway_payment_id = $1',
       [paymentId]
     );
     return result.rows[0] || null;
@@ -113,7 +113,7 @@ class Recharge {
       `UPDATE recharges 
        SET status = $1, updated_at = NOW()
        WHERE id = $2
-       RETURNING id, user_id, razorpay_order_id, razorpay_payment_id, amount, status, created_at`,
+       RETURNING id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at`,
       [status, id]
     );
     return result.rows[0];
@@ -131,7 +131,7 @@ class Recharge {
       `UPDATE recharges 
        SET status = $1, updated_at = NOW()
        WHERE id = $2
-       RETURNING id, user_id, razorpay_order_id, razorpay_payment_id, amount, status, created_at`,
+       RETURNING id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at`,
       [status, id]
     );
     return result.rows[0];
@@ -148,7 +148,7 @@ class Recharge {
    */
   static async getUserRecharges(userId, { limit = 20, offset = 0, status = null } = {}) {
     let queryText = `
-      SELECT id, razorpay_order_id, razorpay_payment_id, amount, status, created_at 
+      SELECT id, gateway_order_id, gateway_payment_id, amount, status, created_at 
       FROM recharges 
       WHERE user_id = $1
     `;
@@ -210,8 +210,8 @@ class Recharge {
     let queryText = `
       SELECT 
         r.id,
-        r.razorpay_order_id,
-        r.razorpay_payment_id,
+        r.gateway_order_id,
+        r.gateway_payment_id,
         r.amount,
         r.status,
         r.created_at,
@@ -265,8 +265,8 @@ class Recharge {
       `SELECT 
          r.id,
          r.user_id,
-         r.razorpay_order_id,
-         r.razorpay_payment_id,
+         r.gateway_order_id,
+         r.gateway_payment_id,
          r.amount,
          r.status,
          r.created_at,

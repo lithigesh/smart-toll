@@ -1,390 +1,359 @@
-const VehicleTollHistory = require('../models/VehicleTollHistory');
+const Journey = require('../models/Journey');
+const VehicleTypeRate = require('../models/VehicleTypeRate');
 const Wallet = require('../models/Wallet');
 const Transaction = require('../models/Transaction');
 const Notifications = require('../models/Notifications');
-const DistanceCalculationService = require('./DistanceCalculationService');
-const GpsLog = require('../models/GpsLog');
+const Vehicle = require('../models/Vehicle');
+const TollGate = require('../models/TollGate');
 
 class TollProcessingService {
   /**
-   * Process a toll charge for a completed toll journey
+   * Process pending tolls when vehicle reaches a toll gate
    * @param {Object} params - Processing parameters
-   * @param {string} params.tollHistoryId - Toll history ID
    * @param {string} params.userId - User ID
-   * @param {string} params.vehicleId - Vehicle ID
-   * @param {number} params.distanceKm - Distance traveled
-   * @param {number} params.ratePerKm - Rate per kilometer
-   * @param {Object} params.zoneInfo - Toll zone information
+   * @param {string} params.vehicleId - Vehicle ID  
+   * @param {string} params.tollGateId - Toll gate ID
+   * @param {string} params.gateType - Gate type (entry/exit/payment)
    * @returns {Promise<Object>} - Processing result
    */
-  static async processTollCharge(params) {
-    const {
-      tollHistoryId,
-      userId,
-      vehicleId,
-      distanceKm,
-      ratePerKm,
-      zoneInfo
-    } = params;
+  static async processAtTollGate(params) {
+    const { userId, vehicleId, tollGateId, gateType = 'payment' } = params;
 
     try {
-      // Calculate fare with options
-      const fareOptions = {
-        minimumFare: zoneInfo.minimum_fare || 5,
-        roundingFactor: 0.5,
-        taxPercentage: zoneInfo.tax_percentage || 0,
-        discountPercentage: await this.calculateDiscount(userId, vehicleId)
-      };
+      console.log(`🚧 Processing toll at gate ${tollGateId} for vehicle ${vehicleId}`);
 
-      const fareCalculation = DistanceCalculationService.calculateFare(
-        distanceKm,
-        ratePerKm,
-        fareOptions
-      );
+      // Get pending toll transactions for this user
+      const pendingTolls = await Transaction.getPendingTolls(userId);
 
-      // Get user wallet
+      if (!pendingTolls || pendingTolls.length === 0) {
+        return {
+          success: true,
+          message: 'No pending tolls to process',
+          processed_count: 0,
+          total_amount: 0
+        };
+      }
+
+      const results = [];
+      let totalProcessed = 0;
+      let totalAmount = 0;
+      let insufficientBalance = false;
+
+      // Get user wallet balance
       const wallet = await Wallet.findByUserId(userId);
       if (!wallet) {
         throw new Error('User wallet not found');
       }
 
-      // Check sufficient balance
-      if (wallet.balance < fareCalculation.finalFare) {
-        return await this.handleInsufficientBalance({
-          userId,
-          vehicleId,
-          tollHistoryId,
-          requiredAmount: fareCalculation.finalFare,
-          currentBalance: wallet.balance,
-          zoneInfo
-        });
-      }
+      // Calculate total pending amount
+      const totalPendingAmount = pendingTolls.reduce((sum, toll) => sum + toll.amount, 0);
 
-      // Process payment
-      const paymentResult = await this.processPayment({
-        userId,
-        amount: fareCalculation.finalFare,
-        tollHistoryId,
-        fareCalculation,
-        zoneInfo
-      });
+      // Check if user has sufficient balance for all pending tolls
+      if (wallet.balance < totalPendingAmount) {
+        insufficientBalance = true;
 
-      // Send success notification
-      await Notifications.createTollExitNotification(userId, {
-        zoneId: zoneInfo.id,
-        zoneName: zoneInfo.name,
-        distanceKm: distanceKm,
-        fareAmount: fareCalculation.finalFare,
-        exitTime: new Date().toISOString(),
-        vehicleId: vehicleId,
-        tollHistoryId: tollHistoryId
-      });
-
-      // Check for low balance warning
-      if (paymentResult.newBalance < 100) {
-        await Notifications.createLowBalanceNotification(
-          userId, 
-          paymentResult.newBalance, 
-          100
-        );
-      }
-
-      return {
-        success: true,
-        tollHistoryId,
-        fareCalculation,
-        paymentResult,
-        balanceWarning: paymentResult.newBalance < 100
-      };
-
-    } catch (error) {
-      console.error('Error processing toll charge:', error);
-      
-      // Send error notification
-      await Notifications.create({
-        user_id: userId,
-        type: 'toll_processing_error',
-        title: 'Toll Processing Error',
-        message: `Failed to process toll charge for ${zoneInfo.name}. Please contact support.`,
-        data: {
-          error: error.message,
-          toll_history_id: tollHistoryId,
-          vehicle_id: vehicleId,
-          zone_name: zoneInfo.name
-        },
-        priority: 'critical'
-      });
-
-      return {
-        success: false,
-        error: error.message,
-        tollHistoryId
-      };
-    }
-  }
-
-  /**
-   * Process payment from wallet
-   * @param {Object} params - Payment parameters
-   * @returns {Promise<Object>} - Payment result
-   */
-  static async processPayment(params) {
-    const { userId, amount, tollHistoryId, fareCalculation, zoneInfo } = params;
-
-    try {
-      // Get current balance
-      const wallet = await Wallet.findByUserId(userId);
-      const previousBalance = wallet.balance;
-
-      // Deduct amount from wallet
-      await Wallet.deductAmount(userId, amount, `Toll charge - ${zoneInfo.name}`);
-
-      // Create transaction record
-      const transaction = await Transaction.create({
-        user_id: userId,
-        type: 'toll_charge',
-        amount: amount,
-        status: 'completed',
-        reference_id: tollHistoryId,
-        description: `Toll charge for ${zoneInfo.name} - ${fareCalculation.distance}km @ ₹${fareCalculation.ratePerKm}/km`,
-        metadata: {
-          toll_history_id: tollHistoryId,
-          zone_id: zoneInfo.id,
-          zone_name: zoneInfo.name,
-          distance_km: fareCalculation.distance,
-          rate_per_km: fareCalculation.ratePerKm,
-          base_fare: fareCalculation.baseFare,
-          tax_amount: fareCalculation.taxAmount,
-          final_fare: fareCalculation.finalFare,
-          discount_percentage: fareCalculation.discount
-        }
-      });
-
-      // Get updated balance
-      const updatedWallet = await Wallet.findByUserId(userId);
-
-      return {
-        success: true,
-        transactionId: transaction.id,
-        previousBalance: previousBalance,
-        newBalance: updatedWallet.balance,
-        amountDeducted: amount
-      };
-
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Handle insufficient balance scenario
-   * @param {Object} params - Insufficient balance parameters
-   * @returns {Promise<Object>} - Handling result
-   */
-  static async handleInsufficientBalance(params) {
-    const {
-      userId,
-      vehicleId,
-      tollHistoryId,
-      requiredAmount,
-      currentBalance,
-      zoneInfo
-    } = params;
-
-    try {
-      // Create insufficient balance notification
-      const notification = await Notifications.createInsufficientBalanceNotification(userId, {
-        fareAmount: requiredAmount,
-        currentBalance: currentBalance,
-        zoneId: zoneInfo.id,
-        zoneName: zoneInfo.name,
-        vehicleId: vehicleId
-      });
-
-      // Create pending transaction
-      const pendingTransaction = await Transaction.create({
-        user_id: userId,
-        type: 'toll_charge_pending',
-        amount: requiredAmount,
-        status: 'pending',
-        reference_id: tollHistoryId,
-        description: `Pending toll charge - ${zoneInfo.name} (Insufficient balance)`,
-        metadata: {
-          toll_history_id: tollHistoryId,
-          zone_id: zoneInfo.id,
-          zone_name: zoneInfo.name,
-          required_amount: requiredAmount,
-          current_balance: currentBalance,
-          shortage: requiredAmount - currentBalance
-        }
-      });
-
-      // Mark toll history as payment pending
-      // This might require updating the VehicleTollHistory model to support this status
-
-      return {
-        success: false,
-        error: 'Insufficient balance',
-        requiredAmount: requiredAmount,
-        currentBalance: currentBalance,
-        shortage: requiredAmount - currentBalance,
-        pendingTransactionId: pendingTransaction.id,
-        notification: notification,
-        suggestedRecharge: Math.ceil((requiredAmount - currentBalance + 100) / 100) * 100 // Round up to nearest 100
-      };
-
-    } catch (error) {
-      console.error('Error handling insufficient balance:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Calculate discount percentage for a user/vehicle
-   * @param {string} userId - User ID
-   * @param {string} vehicleId - Vehicle ID
-   * @returns {Promise<number>} - Discount percentage
-   */
-  static async calculateDiscount(userId, vehicleId) {
-    try {
-      // Example discount logic - could be based on:
-      // - User subscription type
-      // - Frequent traveler benefits
-      // - Vehicle type (electric vehicles get discount)
-      // - Time of day
-      // - Promotional campaigns
-
-      // For now, return 0% discount
-      // In a real implementation, you might query user profile, vehicle type, etc.
-      
-      return 0; // No discount by default
-
-    } catch (error) {
-      console.error('Error calculating discount:', error);
-      return 0; // Default to no discount on error
-    }
-  }
-
-  /**
-   * Retry pending toll payments after wallet recharge
-   * @param {string} userId - User ID
-   * @returns {Promise<Array>} - Array of retry results
-   */
-  static async retryPendingPayments(userId) {
-    try {
-      // Get pending toll transactions
-      const pendingTransactions = await Transaction.findByUserAndType(
-        userId, 
-        'toll_charge_pending',
-        { status: 'pending' }
-      );
-
-      const retryResults = [];
-
-      for (const transaction of pendingTransactions) {
-        try {
-          const tollHistoryId = transaction.reference_id;
-          const metadata = transaction.metadata;
-
-          // Get updated wallet balance
-          const wallet = await Wallet.findByUserId(userId);
-
-          if (wallet.balance >= transaction.amount) {
-            // Sufficient balance now - process payment
-            const paymentResult = await this.processPayment({
-              userId,
-              amount: transaction.amount,
-              tollHistoryId,
-              fareCalculation: {
-                distance: metadata.distance_km,
-                ratePerKm: metadata.rate_per_km,
-                baseFare: metadata.base_fare,
-                taxAmount: metadata.tax_amount,
-                finalFare: metadata.final_fare,
-                discount: metadata.discount_percentage
-              },
-              zoneInfo: {
-                id: metadata.zone_id,
-                name: metadata.zone_name
-              }
-            });
-
-            // Mark original pending transaction as completed
-            await Transaction.updateStatus(transaction.id, 'completed');
-
-            // Send success notification
-            await Notifications.create({
-              user_id: userId,
-              type: 'toll_payment_retry_success',
-              title: 'Pending Toll Payment Processed',
-              message: `₹${transaction.amount.toFixed(2)} toll charge for ${metadata.zone_name} has been processed.`,
-              data: {
-                original_transaction_id: transaction.id,
-                new_transaction_id: paymentResult.transactionId,
-                zone_name: metadata.zone_name,
-                amount: transaction.amount
-              },
-              priority: 'medium'
-            });
-
-            retryResults.push({
-              success: true,
-              transactionId: transaction.id,
-              amount: transaction.amount,
-              zoneName: metadata.zone_name
-            });
-
-          } else {
-            // Still insufficient balance
-            retryResults.push({
-              success: false,
-              transactionId: transaction.id,
-              amount: transaction.amount,
-              zoneName: metadata.zone_name,
-              shortage: transaction.amount - wallet.balance
-            });
+        // Create notification for insufficient balance
+        await Notifications.create({
+          user_id: userId,
+          type: 'insufficient_balance',
+          title: 'Insufficient Balance for Toll Payment',
+          message: `Cannot process ${pendingTolls.length} pending toll(s) worth ₹${totalPendingAmount}. Current balance: ₹${wallet.balance}. Please recharge your wallet.`,
+          priority: 'high',
+          data: {
+            required_amount: totalPendingAmount,
+            current_balance: wallet.balance,
+            pending_tolls_count: pendingTolls.length,
+            toll_gate_id: tollGateId
           }
+        });
+
+        return {
+          success: false,
+          message: 'Insufficient wallet balance',
+          required_amount: totalPendingAmount,
+          current_balance: wallet.balance,
+          processed_count: 0,
+          total_amount: 0,
+          action_required: 'recharge_wallet'
+        };
+      }
+
+      // Process each pending toll
+      for (const pendingToll of pendingTolls) {
+        try {
+          // Process the payment atomically
+          const processedTransaction = await this.processPaymentAtomically({
+            pendingToll,
+            tollGateId,
+            userId,
+            gateType
+          });
+
+          results.push({
+            transaction_id: processedTransaction.id,
+            journey_id: processedTransaction.journey_id,
+            success: true,
+            amount: processedTransaction.amount,
+            distance_km: processedTransaction.metadata?.distance_km
+          });
+
+          totalProcessed++;
+          totalAmount += processedTransaction.amount;
+
+          console.log(`✅ Processed toll: ₹${processedTransaction.amount} for journey ${processedTransaction.journey_id}`);
 
         } catch (error) {
-          console.error(`Error retrying payment for transaction ${transaction.id}:`, error);
-          retryResults.push({
+          console.error(`Error processing pending toll ${pendingToll.id}:`, error);
+          results.push({
+            transaction_id: pendingToll.id,
+            journey_id: pendingToll.journey_id,
             success: false,
-            transactionId: transaction.id,
-            error: error.message
+            reason: 'processing_error',
+            error: error.message,
+            amount: pendingToll.amount
           });
         }
       }
 
-      return retryResults;
+      // Send summary notification
+      if (totalProcessed > 0) {
+        await Notifications.create({
+          user_id: userId,
+          type: 'toll_payment_processed',
+          title: `Toll Payment Complete - ₹${totalAmount}`,
+          message: `${totalProcessed} pending toll payment(s) processed successfully at toll gate.`,
+          priority: 'medium',
+          data: {
+            processed_count: totalProcessed,
+            total_amount: totalAmount,
+            toll_gate_id: tollGateId,
+            new_wallet_balance: wallet.balance - totalAmount,
+            processing_results: results
+          }
+        });
+      }
+
+      console.log(`🎯 Toll processing complete: ${totalProcessed} payments, ₹${totalAmount} total`);
+
+      return {
+        success: true,
+        processed_count: totalProcessed,
+        total_amount: totalAmount,
+        new_wallet_balance: wallet.balance - totalAmount,
+        results
+      };
 
     } catch (error) {
-      console.error('Error retrying pending payments:', error);
+      console.error('Error processing toll at gate:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process payment atomically (deduct wallet + update transaction)
+   * @param {Object} params - Payment parameters
+   * @returns {Promise<Object>} - Processing result
+   */
+  static async processPaymentAtomically({ pendingToll, tollGateId, userId, gateType }) {
+    try {
+      // 1. Deduct from wallet
+      const updatedWallet = await Wallet.deduct(userId, pendingToll.amount, {
+        description: `Toll payment: ${pendingToll.description}`,
+        reference: tollGateId
+      });
+
+      // 2. Update transaction status to completed
+      const completedTransaction = await Transaction.processPendingToll(
+        pendingToll.id, 
+        tollGateId
+      );
+
+      // 3. Mark associated journey as settled
+      if (pendingToll.journey_id) {
+        await Journey.markAsSettled(pendingToll.journey_id, completedTransaction.id);
+      }
+
+      console.log(`💳 Payment processed: ₹${pendingToll.amount}, New balance: ₹${updatedWallet.balance}`);
+
+      return completedTransaction;
+
+    } catch (error) {
+      console.error('Error in atomic payment processing:', error);
+      
+      // If wallet deduction fails, don't update transaction
+      if (error.message.includes('Insufficient')) {
+        throw new Error(`Insufficient wallet balance: ${error.message}`);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate toll fare based on distance and vehicle type
+   * @param {Object} params - Calculation parameters
+   * @param {number} params.distanceKm - Distance in kilometers
+   * @param {string} params.vehicleType - Vehicle type (car, truck, bus, bike)
+   * @param {string} params.tollRoadId - Toll road ID
+   * @param {Object} params.options - Additional calculation options
+   * @returns {Promise<Object>} - Fare calculation result
+   */
+  static async calculateDistanceFare(params) {
+    const { distanceKm, vehicleType, tollRoadId, options = {} } = params;
+
+    try {
+      // Get rate for vehicle type on this toll road
+      const rate = await VehicleTypeRate.getRate(vehicleType, tollRoadId);
+      
+      if (!rate) {
+        throw new Error(`No rate found for vehicle type ${vehicleType} on toll road ${tollRoadId}`);
+      }
+
+      // Calculate base fare
+      let baseFare = distanceKm * rate.rate_per_km;
+      
+      // Apply minimum fare
+      baseFare = Math.max(baseFare, rate.minimum_fare || 5);
+
+      // Apply distance-based discounts
+      let discountMultiplier = 1;
+      if (distanceKm > 100) {
+        discountMultiplier = 0.9; // 10% discount for long distances
+      } else if (distanceKm > 50) {
+        discountMultiplier = 0.95; // 5% discount for medium distances
+      }
+
+      let finalFare = baseFare * discountMultiplier;
+
+      // Apply rounding
+      const roundingFactor = options.roundingFactor || 0.5;
+      finalFare = Math.ceil(finalFare / roundingFactor) * roundingFactor;
+
+      return {
+        distance_km: distanceKm,
+        vehicle_type: vehicleType,
+        base_rate_per_km: rate.rate_per_km,
+        minimum_fare: rate.minimum_fare,
+        base_fare: baseFare,
+        discount_applied: (1 - discountMultiplier) * 100, // percentage
+        final_fare: finalFare,
+        calculation_breakdown: {
+          distance_km: distanceKm,
+          rate_per_km: rate.rate_per_km,
+          base_amount: distanceKm * rate.rate_per_km,
+          minimum_applied: baseFare > (distanceKm * rate.rate_per_km),
+          discount_percentage: (1 - discountMultiplier) * 100,
+          final_amount: finalFare
+        }
+      };
+
+    } catch (error) {
+      console.error('Error calculating distance fare:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get pending toll summary for a user
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} - Pending toll summary
+   */
+  static async getPendingTollSummary(userId) {
+    try {
+      const pendingTolls = await Transaction.getPendingTolls(userId);
+      const wallet = await Wallet.findByUserId(userId);
+
+      const summary = {
+        pending_count: pendingTolls.length,
+        total_pending_amount: pendingTolls.reduce((sum, toll) => sum + toll.amount, 0),
+        current_wallet_balance: wallet ? wallet.balance : 0,
+        can_process_all: false,
+        pending_journeys: []
+      };
+
+      summary.can_process_all = summary.current_wallet_balance >= summary.total_pending_amount;
+
+      // Group by journey
+      summary.pending_journeys = pendingTolls.map(toll => ({
+        transaction_id: toll.id,
+        journey_id: toll.journey_id,
+        amount: toll.amount,
+        distance_km: toll.metadata?.distance_km || 0,
+        vehicle_plate: toll.vehicles?.plate_number,
+        vehicle_type: toll.vehicles?.vehicle_type,
+        exit_time: toll.journeys?.exit_time,
+        description: toll.description
+      }));
+
+      return summary;
+
+    } catch (error) {
+      console.error('Error getting pending toll summary:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Simulate toll processing (for testing)
+   * @param {Object} params - Simulation parameters
+   * @returns {Promise<Object>} - Simulation result
+   */
+  static async simulateTollProcessing(params) {
+    const { userId, vehicleId, distanceKm, vehicleType, tollRoadId } = params;
+
+    try {
+      // Calculate what the fare would be
+      const fareCalculation = await this.calculateDistanceFare({
+        distanceKm,
+        vehicleType,
+        tollRoadId
+      });
+
+      // Check wallet balance
+      const wallet = await Wallet.findByUserId(userId);
+      const canAfford = wallet && wallet.balance >= fareCalculation.final_fare;
+
+      return {
+        simulation: true,
+        fare_calculation: fareCalculation,
+        wallet_balance: wallet ? wallet.balance : 0,
+        can_afford: canAfford,
+        balance_after_payment: wallet ? wallet.balance - fareCalculation.final_fare : 0,
+        message: canAfford 
+          ? 'Payment can be processed'
+          : 'Insufficient wallet balance'
+      };
+
+    } catch (error) {
+      console.error('Error in toll processing simulation:', error);
       throw error;
     }
   }
 
   /**
    * Get toll processing statistics
-   * @param {Object} params - Statistics parameters
+   * @param {string} userId - User ID (optional)
+   * @param {Object} dateRange - Date range for statistics
    * @returns {Promise<Object>} - Processing statistics
    */
-  static async getProcessingStats(params = {}) {
+  static async getProcessingStats(userId = null, dateRange = {}) {
     try {
-      const { startDate, endDate, userId = null } = params;
-
-      // This would implement comprehensive toll processing statistics
-      // For now, return basic structure
-
-      return {
-        totalProcessed: 0,
-        successfulPayments: 0,
-        failedPayments: 0,
-        pendingPayments: 0,
-        totalRevenue: 0,
-        averageFare: 0,
-        processingErrors: 0
+      // This would be implemented based on your specific analytics needs
+      const stats = {
+        total_transactions: 0,
+        total_amount: 0,
+        average_fare: 0,
+        most_used_vehicle_type: null,
+        processing_success_rate: 0,
+        date_range: dateRange
       };
+
+      if (userId) {
+        const userStats = await Transaction.getStats(userId, dateRange);
+        stats.user_specific = userStats;
+      }
+
+      return stats;
 
     } catch (error) {
       console.error('Error getting processing stats:', error);
@@ -393,33 +362,42 @@ class TollProcessingService {
   }
 
   /**
-   * Force process a toll charge (admin function)
-   * @param {Object} params - Force processing parameters
-   * @returns {Promise<Object>} - Processing result
+   * Cancel pending toll transactions (for emergencies)
+   * @param {Array} transactionIds - Array of transaction IDs to cancel
+   * @param {string} reason - Cancellation reason
+   * @returns {Promise<Object>} - Cancellation result
    */
-  static async forceProcessTollCharge(params) {
+  static async cancelPendingTolls(transactionIds, reason = 'Cancelled by system') {
     try {
-      const { tollHistoryId, adminUserId, reason } = params;
+      const results = [];
 
-      // Get toll history
-      const tollHistory = await VehicleTollHistory.getById(tollHistoryId);
-      if (!tollHistory) {
-        throw new Error('Toll history not found');
+      for (const transactionId of transactionIds) {
+        try {
+          const cancelledTransaction = await Transaction.cancel(transactionId, reason);
+          results.push({
+            transaction_id: transactionId,
+            success: true,
+            cancelled_transaction: cancelledTransaction
+          });
+        } catch (error) {
+          results.push({
+            transaction_id: transactionId,
+            success: false,
+            error: error.message
+          });
+        }
       }
 
-      // This would implement admin override logic
-      // For now, just return a placeholder
+      const successCount = results.filter(r => r.success).length;
 
       return {
-        success: true,
-        tollHistoryId,
-        adminUserId,
-        reason,
-        processedAt: new Date().toISOString()
+        cancelled_count: successCount,
+        failed_count: results.length - successCount,
+        results
       };
 
     } catch (error) {
-      console.error('Error force processing toll charge:', error);
+      console.error('Error cancelling pending tolls:', error);
       throw error;
     }
   }

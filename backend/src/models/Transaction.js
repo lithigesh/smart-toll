@@ -1,7 +1,5 @@
-const { query, withTransaction } = require('../config/db');
-
-// Import Supabase client
 const { createClient } = require('@supabase/supabase-js');
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -15,366 +13,402 @@ const supabase = createClient(
 
 class Transaction {
   /**
-   * Create a new transaction
-   * @param {Object} transactionData - Transaction data
-   * @param {string} transactionData.user_id - User ID
-   * @param {string} transactionData.vehicle_id - Vehicle ID (nullable for recharges)
-   * @param {string} transactionData.toll_gate_id - Toll gate ID (will be stored as reference_id) 
-   * @param {string} transactionData.transaction_type - Transaction type ('toll_deduction' -> 'toll_charge')
-   * @param {number} transactionData.amount - Transaction amount
-   * @param {string} transactionData.status - Transaction status ('completed', 'failed', 'pending')
-   * @param {string} transactionData.description - Transaction description
-   * @returns {Promise<Object>} - Created transaction object
+   * Create a new pending toll transaction
+   * @param {Object} params - Transaction parameters
+   * @param {string} params.user_id - User ID
+   * @param {string} params.vehicle_id - Vehicle ID
+   * @param {string} params.journey_id - Journey ID
+   * @param {number} params.amount - Transaction amount
+   * @param {string} params.description - Transaction description
+   * @param {Object} params.metadata - Additional metadata
+   * @returns {Promise<Object>} - Created transaction
    */
-  static async create({ user_id, vehicle_id, toll_gate_id, transaction_type, amount, status = 'completed', description = null }) {
-    console.log('🔧 Creating transaction with:', { user_id, vehicle_id, toll_gate_id, transaction_type, amount, status });
-    
-    // Map transaction_type to the schema's allowed values
-    const typeMapping = {
-      'toll_deduction': 'toll_charge',
-      'recharge': 'recharge',
-      'refund': 'refund'
-    };
-    
-    const mappedType = typeMapping[transaction_type] || 'toll_charge';
-    
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert({
+  static async createPendingToll({ user_id, vehicle_id, journey_id, amount, description, metadata }) {
+    try {
+      const transaction = {
         user_id,
         vehicle_id,
-        amount,
-        type: mappedType,
-        status: status,
-        reference_id: toll_gate_id, // Store toll_gate_id as reference_id
-        description: description || `${mappedType} transaction`,
-        metadata: {
-          toll_gate_id: toll_gate_id,
-          transaction_type: transaction_type
-        }
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('❌ Error creating transaction:', error);
-      throw new Error(`Failed to create transaction: ${error.message}`);
+        journey_id,
+        type: 'toll_charge',
+        amount: parseFloat(amount),
+        status: 'pending',
+        description,
+        metadata,
+        transaction_date: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(transaction)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating pending toll transaction:', error);
+        throw new Error(`Failed to create pending toll transaction: ${error.message}`);
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error('Error in createPendingToll:', error);
+      throw error;
     }
-    
-    console.log('✅ Transaction created successfully:', data);
-    return data;
   }
 
   /**
-   * Create transaction within a database transaction (using Supabase)
-   * @param {Object} client - Database client (transaction)
-   * @param {Object} transactionData - Transaction data
-   * @returns {Promise<Object>} - Created transaction object
+   * Process a pending toll (mark as completed and link to toll gate)
+   * @param {string} transactionId - Transaction ID
+   * @param {string} tollGateId - Toll gate ID
+   * @returns {Promise<Object>} - Updated transaction
    */
-  static async createInTransaction(client, { user_id, vehicle_id, toll_gate_id, type, amount, balance_after }) {
-    // Use Supabase client directly since transaction client is mock
-    // Map 'type' to 'transaction_type' to match schema
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert({
-        user_id,
-        vehicle_id,
-        toll_gate_id,
-        amount,
-        transaction_type: type, // Map 'type' to 'transaction_type'
-        status: 'completed'
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error creating transaction record:', error);
-      throw new Error(`Failed to create transaction record: ${error.message}`);
+  static async processPendingToll(transactionId, tollGateId) {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .update({
+          status: 'completed',
+          payment_method: 'wallet',
+          payment_reference: tollGateId,
+          processed_at: new Date().toISOString(),
+          metadata: supabase.raw(`
+            COALESCE(metadata, '{}')::jsonb || 
+            '{"toll_gate_id": "${tollGateId}", "processed_via": "toll_gate"}'::jsonb
+          `)
+        })
+        .eq('id', transactionId)
+        .eq('status', 'pending')
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error processing pending toll:', error);
+        throw new Error(`Failed to process pending toll: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Transaction not found or not in pending status');
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error('Error in processPendingToll:', error);
+      throw error;
     }
-    
-    console.log('Transaction record created successfully:', data);
-    return data;
   }
 
   /**
-   * Get user's transaction history
-   * @param {number} userId - User ID
+   * Get pending toll transactions for a user
+   * @param {string} userId - User ID
+   * @returns {Promise<Array>} - Pending transactions
+   */
+  static async getPendingTolls(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          vehicles(plate_number, vehicle_type),
+          journeys(
+            id,
+            distance_km,
+            entry_time,
+            exit_time
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('type', 'toll_charge')
+        .eq('status', 'pending')
+        .order('transaction_date', { ascending: true });
+
+      if (error) {
+        console.error('Error getting pending tolls:', error);
+        throw new Error(`Failed to get pending tolls: ${error.message}`);
+      }
+
+      return data || [];
+
+    } catch (error) {
+      console.error('Error in getPendingTolls:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a wallet recharge transaction
+   * @param {Object} params - Recharge parameters
+   * @param {string} params.user_id - User ID
+   * @param {number} params.amount - Recharge amount
+   * @param {string} params.payment_method - Payment method
+   * @param {string} params.payment_reference - Payment reference ID
+   * @param {Object} params.metadata - Additional metadata
+   * @returns {Promise<Object>} - Created transaction
+   */
+  static async createRecharge({ user_id, amount, payment_method, payment_reference, metadata = {} }) {
+    try {
+      const transaction = {
+        user_id,
+        type: 'wallet_recharge',
+        amount: parseFloat(amount),
+        status: 'completed',
+        payment_method,
+        payment_reference,
+        description: `Wallet recharge via ${payment_method}`,
+        metadata,
+        transaction_date: new Date().toISOString(),
+        processed_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(transaction)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating recharge transaction:', error);
+        throw new Error(`Failed to create recharge transaction: ${error.message}`);
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error('Error in createRecharge:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get transaction history for a user
+   * @param {string} userId - User ID
    * @param {Object} options - Query options
    * @param {number} options.limit - Number of transactions to return
    * @param {number} options.offset - Number of transactions to skip
-   * @param {string} options.type - Filter by transaction type
-   * @param {string} options.startDate - Filter from date
-   * @param {string} options.endDate - Filter to date
-   * @returns {Promise<Array>} - Array of transactions with related data
+   * @param {string} options.type - Transaction type filter
+   * @returns {Promise<Object>} - Transaction history with pagination
    */
-  static async getUserTransactions(userId, { limit = 20, offset = 0, type = null, startDate = null, endDate = null } = {}) {
-    let queryText = `
-      SELECT 
-        t.id,
-        t.type,
-        t.amount,
-        t.balance_after,
-        t.timestamp,
-        v.vehicle_no,
-        v.vehicle_type,
-        tg.name as toll_gate_name,
-        tg.gps_lat as toll_gate_lat,
-        tg.gps_long as toll_gate_long
-      FROM transactions t
-      LEFT JOIN vehicles v ON t.vehicle_id = v.id
-      LEFT JOIN toll_gates tg ON t.toll_gate_id = tg.id
-      WHERE t.user_id = $1
-    `;
-    
-    const params = [userId];
-    let paramCount = 1;
-    
-    if (type) {
-      paramCount++;
-      queryText += ` AND t.type = $${paramCount}`;
-      params.push(type);
-    }
-    
-    if (startDate) {
-      paramCount++;
-      queryText += ` AND t.timestamp >= $${paramCount}`;
-      params.push(startDate);
-    }
-    
-    if (endDate) {
-      paramCount++;
-      queryText += ` AND t.timestamp <= $${paramCount}`;
-      params.push(endDate);
-    }
-    
-    paramCount++;
-    queryText += ` ORDER BY t.timestamp DESC LIMIT $${paramCount}`;
-    params.push(limit);
-    
-    paramCount++;
-    queryText += ` OFFSET $${paramCount}`;
-    params.push(offset);
+  static async getHistory(userId, { limit = 50, offset = 0, type = null } = {}) {
+    try {
+      let query = supabase
+        .from('transactions')
+        .select(`
+          *,
+          vehicles(plate_number, vehicle_type),
+          journeys(
+            id,
+            distance_km,
+            entry_time,
+            exit_time
+          )
+        `, { count: 'exact' })
+        .eq('user_id', userId)
+        .order('transaction_date', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-    const result = await query(queryText, params);
-    return result.rows;
+      if (type) {
+        query = query.eq('type', type);
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        console.error('Error getting transaction history:', error);
+        throw new Error(`Failed to get transaction history: ${error.message}`);
+      }
+
+      return {
+        transactions: data || [],
+        total: count || 0,
+        limit,
+        offset,
+        has_more: count > offset + limit
+      };
+
+    } catch (error) {
+      console.error('Error in getHistory:', error);
+      throw error;
+    }
   }
 
   /**
-   * Get transaction by ID
-   * @param {number} transactionId - Transaction ID
-   * @param {number} userId - User ID (for authorization)
-   * @returns {Promise<Object|null>} - Transaction object or null if not found
+   * Find transaction by ID
+   * @param {string} id - Transaction ID
+   * @returns {Promise<Object|null>} - Transaction or null
    */
-  static async getById(transactionId, userId = null) {
-    let queryText = `
-      SELECT 
-        t.id,
-        t.user_id,
-        t.type,
-        t.amount,
-        t.balance_after,
-        t.timestamp,
-        v.vehicle_no,
-        v.vehicle_type,
-        tg.name as toll_gate_name,
-        tg.gps_lat as toll_gate_lat,
-        tg.gps_long as toll_gate_long,
-        u.name as user_name,
-        u.email as user_email
-      FROM transactions t
-      LEFT JOIN vehicles v ON t.vehicle_id = v.id
-      LEFT JOIN toll_gates tg ON t.toll_gate_id = tg.id
-      JOIN users u ON t.user_id = u.id
-      WHERE t.id = $1
-    `;
-    
-    const params = [transactionId];
-    
-    if (userId) {
-      queryText += ' AND t.user_id = $2';
-      params.push(userId);
-    }
+  static async findById(id) {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          users(id, email, full_name),
+          vehicles(plate_number, vehicle_type),
+          journeys(
+            id,
+            distance_km,
+            entry_time,
+            exit_time,
+            toll_roads(name)
+          )
+        `)
+        .eq('id', id)
+        .single();
 
-    const result = await query(queryText, params);
-    return result.rows[0] || null;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error finding transaction:', error);
+        throw new Error(`Failed to find transaction: ${error.message}`);
+      }
+
+      return data || null;
+
+    } catch (error) {
+      console.error('Error in findById:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel a pending transaction
+   * @param {string} transactionId - Transaction ID
+   * @param {string} reason - Cancellation reason
+   * @returns {Promise<Object>} - Updated transaction
+   */
+  static async cancel(transactionId, reason = 'Cancelled by system') {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .update({
+          status: 'cancelled',
+          processed_at: new Date().toISOString(),
+          metadata: supabase.raw(`
+            COALESCE(metadata, '{}')::jsonb || 
+            '{"cancellation_reason": "${reason}"}'::jsonb
+          `)
+        })
+        .eq('id', transactionId)
+        .eq('status', 'pending')
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error cancelling transaction:', error);
+        throw new Error(`Failed to cancel transaction: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Transaction not found or not in pending status');
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error('Error in cancel:', error);
+      throw error;
+    }
   }
 
   /**
    * Get transaction statistics for a user
-   * @param {number} userId - User ID
-   * @param {Object} options - Query options
-   * @param {string} options.period - Time period ('day', 'week', 'month', 'year')
+   * @param {string} userId - User ID
+   * @param {Object} dateRange - Date range for statistics
    * @returns {Promise<Object>} - Transaction statistics
    */
-  static async getUserStats(userId, { period = 'month' } = {}) {
-    const periodMap = {
-      day: '1 day',
-      week: '7 days',
-      month: '30 days',
-      year: '365 days'
-    };
+  static async getStats(userId, dateRange = {}) {
+    try {
+      const { start_date, end_date } = dateRange;
+      
+      let query = supabase
+        .from('transactions')
+        .select('type, amount, status')
+        .eq('user_id', userId);
 
-    const interval = periodMap[period] || '30 days';
+      if (start_date) {
+        query = query.gte('transaction_date', start_date);
+      }
+      
+      if (end_date) {
+        query = query.lte('transaction_date', end_date);
+      }
 
-    const result = await query(
-      `SELECT 
-         COUNT(*) as total_transactions,
-         COUNT(CASE WHEN type = 'recharge' THEN 1 END) as total_recharges,
-         COUNT(CASE WHEN type = 'deduction' THEN 1 END) as total_deductions,
-         COALESCE(SUM(CASE WHEN type = 'recharge' THEN amount END), 0) as total_recharged,
-         COALESCE(SUM(CASE WHEN type = 'deduction' THEN amount END), 0) as total_spent,
-         COALESCE(AVG(CASE WHEN type = 'deduction' THEN amount END), 0) as avg_toll_amount,
-         MAX(CASE WHEN type = 'recharge' THEN timestamp END) as last_recharge,
-         MAX(CASE WHEN type = 'deduction' THEN timestamp END) as last_toll_payment
-       FROM transactions 
-       WHERE user_id = $1 AND timestamp >= NOW() - INTERVAL '${interval}'`,
-      [userId]
-    );
+      const { data, error } = await query;
 
-    return result.rows[0] || {
-      total_transactions: 0,
-      total_recharges: 0,
-      total_deductions: 0,
-      total_recharged: 0,
-      total_spent: 0,
-      avg_toll_amount: 0,
-      last_recharge: null,
-      last_toll_payment: null
-    };
-  }
+      if (error) {
+        console.error('Error getting transaction stats:', error);
+        throw new Error(`Failed to get transaction stats: ${error.message}`);
+      }
 
-  /**
-   * Get daily transaction summary for a user
-   * @param {number} userId - User ID
-   * @param {number} days - Number of days to include
-   * @returns {Promise<Array>} - Array of daily summaries
-   */
-  static async getDailySummary(userId, days = 30) {
-    const result = await query(
-      `SELECT 
-         DATE(timestamp) as transaction_date,
-         COUNT(*) as total_transactions,
-         COUNT(CASE WHEN type = 'recharge' THEN 1 END) as recharges,
-         COUNT(CASE WHEN type = 'deduction' THEN 1 END) as deductions,
-         COALESCE(SUM(CASE WHEN type = 'recharge' THEN amount END), 0) as total_recharged,
-         COALESCE(SUM(CASE WHEN type = 'deduction' THEN amount END), 0) as total_spent
-       FROM transactions 
-       WHERE user_id = $1 AND timestamp >= NOW() - INTERVAL '${days} days'
-       GROUP BY DATE(timestamp)
-       ORDER BY transaction_date DESC`,
-      [userId]
-    );
-    return result.rows;
-  }
+      const stats = {
+        total_transactions: data.length,
+        total_toll_charges: 0,
+        total_recharges: 0,
+        pending_amount: 0,
+        completed_amount: 0,
+        cancelled_amount: 0
+      };
 
-  /**
-   * Get recent transactions across all users (admin function)
-   * @param {Object} options - Query options
-   * @param {number} options.limit - Number of transactions to return
-   * @param {number} options.offset - Number of transactions to skip
-   * @param {string} options.type - Filter by transaction type
-   * @returns {Promise<Array>} - Array of transactions with user info
-   */
-  static async getRecentTransactions({ limit = 50, offset = 0, type = null } = {}) {
-    let queryText = `
-      SELECT 
-        t.id,
-        t.type,
-        t.amount,
-        t.balance_after,
-        t.timestamp,
-        u.name as user_name,
-        u.email as user_email,
-        v.vehicle_no,
-        tg.name as toll_gate_name
-      FROM transactions t
-      JOIN users u ON t.user_id = u.id
-      LEFT JOIN vehicles v ON t.vehicle_id = v.id
-      LEFT JOIN toll_gates tg ON t.toll_gate_id = tg.id
-      WHERE 1=1
-    `;
-    
-    const params = [];
-    let paramCount = 0;
-    
-    if (type) {
-      paramCount++;
-      queryText += ` AND t.type = $${paramCount}`;
-      params.push(type);
+      data.forEach(transaction => {
+        if (transaction.type === 'toll_charge') {
+          stats.total_toll_charges += transaction.amount;
+        } else if (transaction.type === 'wallet_recharge') {
+          stats.total_recharges += transaction.amount;
+        }
+
+        if (transaction.status === 'pending') {
+          stats.pending_amount += transaction.amount;
+        } else if (transaction.status === 'completed') {
+          stats.completed_amount += transaction.amount;
+        } else if (transaction.status === 'cancelled') {
+          stats.cancelled_amount += transaction.amount;
+        }
+      });
+
+      return stats;
+
+    } catch (error) {
+      console.error('Error in getStats:', error);
+      throw error;
     }
-    
-    paramCount++;
-    queryText += ` ORDER BY t.timestamp DESC LIMIT $${paramCount}`;
-    params.push(limit);
-    
-    paramCount++;
-    queryText += ` OFFSET $${paramCount}`;
-    params.push(offset);
-
-    const result = await query(queryText, params);
-    return result.rows;
   }
 
   /**
-   * Get transaction volume by toll gate
-   * @param {Object} options - Query options
-   * @param {string} options.startDate - Filter from date
-   * @param {string} options.endDate - Filter to date
-   * @returns {Promise<Array>} - Array of toll gate transaction volumes
+   * Bulk process multiple pending transactions
+   * @param {Array} transactionIds - Array of transaction IDs
+   * @param {string} tollGateId - Toll gate ID
+   * @returns {Promise<Object>} - Processing results
    */
-  static async getTollGateVolume({ startDate = null, endDate = null } = {}) {
-    let queryText = `
-      SELECT 
-        tg.id as toll_gate_id,
-        tg.name as toll_gate_name,
-        COUNT(t.id) as total_crossings,
-        COALESCE(SUM(t.amount), 0) as total_revenue,
-        COALESCE(AVG(t.amount), 0) as avg_toll_amount
-      FROM toll_gates tg
-      LEFT JOIN transactions t ON tg.id = t.toll_gate_id AND t.type = 'deduction'
-    `;
-    
-    const params = [];
-    let paramCount = 0;
-    
-    if (startDate) {
-      paramCount++;
-      queryText += ` AND t.timestamp >= $${paramCount}`;
-      params.push(startDate);
-    }
-    
-    if (endDate) {
-      paramCount++;
-      queryText += ` AND t.timestamp <= $${paramCount}`;
-      params.push(endDate);
-    }
-    
-    queryText += ` GROUP BY tg.id, tg.name ORDER BY total_crossings DESC`;
+  static async bulkProcessPending(transactionIds, tollGateId) {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .update({
+          status: 'completed',
+          payment_method: 'wallet',
+          payment_reference: tollGateId,
+          processed_at: new Date().toISOString(),
+          metadata: supabase.raw(`
+            COALESCE(metadata, '{}')::jsonb || 
+            '{"toll_gate_id": "${tollGateId}", "processed_via": "toll_gate", "bulk_processed": true}'::jsonb
+          `)
+        })
+        .in('id', transactionIds)
+        .eq('status', 'pending')
+        .select();
 
-    const result = await query(queryText, params);
-    return result.rows;
-  }
+      if (error) {
+        console.error('Error bulk processing transactions:', error);
+        throw new Error(`Failed to bulk process transactions: ${error.message}`);
+      }
 
-  /**
-   * Get monthly revenue report
-   * @param {number} months - Number of months to include
-   * @returns {Promise<Array>} - Array of monthly revenue data
-   */
-  static async getMonthlyRevenue(months = 12) {
-    const result = await query(
-      `SELECT 
-         DATE_TRUNC('month', timestamp) as month,
-         COUNT(CASE WHEN type = 'deduction' THEN 1 END) as toll_crossings,
-         COUNT(CASE WHEN type = 'recharge' THEN 1 END) as recharges,
-         COALESCE(SUM(CASE WHEN type = 'deduction' THEN amount END), 0) as toll_revenue,
-         COALESCE(SUM(CASE WHEN type = 'recharge' THEN amount END), 0) as recharge_volume
-       FROM transactions 
-       WHERE timestamp >= NOW() - INTERVAL '${months} months'
-       GROUP BY DATE_TRUNC('month', timestamp)
-       ORDER BY month DESC`,
-      []
-    );
-    return result.rows;
+      return {
+        processed_count: data.length,
+        processed_transactions: data
+      };
+
+    } catch (error) {
+      console.error('Error in bulkProcessPending:', error);
+      throw error;
+    }
   }
 }
 

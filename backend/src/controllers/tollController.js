@@ -2,25 +2,27 @@ const Vehicle = require('../models/Vehicle');
 const Wallet = require('../models/Wallet');
 const TollGate = require('../models/TollGate');
 const Transaction = require('../models/Transaction');
-const TollPassage = require('../models/TollPassage');
+const Journey = require('../models/Journey');
 const User = require('../models/User');
+const GeofencingService = require('../services/GeofencingService');
+const TollProcessingService = require('../services/TollProcessingService');
 
 const { supabase } = require('../config/db');
 const { asyncErrorHandler, NotFoundError, PaymentError, ValidationError } = require('../middleware/errorHandler');
 
 /**
- * Handle toll event when vehicle crosses toll gate
- * POST /api/toll/event
- * This endpoint simulates vehicle detection and processes toll payment
+ * Process pending toll payment when vehicle reaches toll gate
+ * POST /api/toll/process-pending
+ * This endpoint processes pending toll payments when vehicle contacts toll gate
  */
-const handleTollEvent = asyncErrorHandler(async (req, res) => {
+const processPendingToll = asyncErrorHandler(async (req, res) => {
   const { license_plate, toll_gate_id, timestamp } = req.body;
 
   if (!license_plate || !toll_gate_id) {
     throw new ValidationError('license_plate and toll_gate_id are required');
   }
 
-  console.log('🚗 Toll event received:', {
+  console.log('🚧 Processing pending toll at gate:', {
     license_plate: license_plate.toUpperCase(),
     toll_gate_id,
     timestamp: timestamp || new Date().toISOString()
@@ -28,396 +30,330 @@ const handleTollEvent = asyncErrorHandler(async (req, res) => {
 
   try {
     // 1. Find vehicle and its owner
-    const { data: vehicles, error: vehicleError } = await supabase
-      .from('vehicles')
-      .select('id, user_id, license_plate, vehicle_type, model')
-      .eq('license_plate', license_plate.toUpperCase())
-      .eq('is_active', true)
-      .single();
-
-    if (vehicleError || !vehicles) {
+    const vehicle = await Vehicle.findByPlateNumber(license_plate.toUpperCase());
+    if (!vehicle) {
       throw new NotFoundError(`Vehicle ${license_plate} is not registered in the system`);
     }
 
-    const vehicle = vehicles;
-
     // 2. Get toll gate information
-    const { data: tollGate, error: tollGateError } = await supabase
-      .from('toll_gates')
-      .select('id, name, location, toll_amount')
-      .eq('id', toll_gate_id)
-      .eq('is_active', true)
-      .single();
-
-    if (tollGateError || !tollGate) {
-      throw new NotFoundError(`Toll gate with ID ${toll_gate_id} not found`);
+    const tollGate = await TollGate.findById(toll_gate_id);
+    if (!tollGate) {
+      throw new NotFoundError(`Toll gate ${toll_gate_id} not found`);
     }
 
-    const charge = parseFloat(tollGate.toll_amount);
+    console.log(`🎯 Processing tolls for user ${vehicle.user_id}, vehicle ${vehicle.id}`);
 
-    // 3. Get current wallet balance
-    const { data: wallet, error: walletError } = await supabase
-      .from('wallets')
-      .select('id, balance')
-      .eq('user_id', vehicle.user_id)
-      .single();
-
-    if (walletError || !wallet) {
-      throw new NotFoundError('Wallet not found for vehicle owner');
-    }
-
-    const currentBalance = parseFloat(wallet.balance);
-
-    // 4. Check if user has sufficient balance
-    if (currentBalance < charge) {
-      // Insert a failed transaction record for audit
-      const failedTransaction = await Transaction.create({
-        user_id: vehicle.user_id,
-        vehicle_id: vehicle.id,
-        toll_gate_id: toll_gate_id,
-        amount: charge,
-        status: 'failed',
-        transaction_type: 'toll_deduction'
-      });
-
-      return res.status(402).json({
-        success: false,
-        error: 'insufficient_balance',
-        message: `Insufficient balance. Current: ₹${currentBalance}, Required: ₹${charge}`,
-        data: {
-          current_balance: currentBalance,
-          required_amount: charge,
-          shortfall: charge - currentBalance,
-          vehicle: {
-            license_plate: vehicle.license_plate,
-            vehicle_type: vehicle.vehicle_type,
-            model: vehicle.model
-          },
-          toll_gate: {
-            name: tollGate.name,
-            location: tollGate.location,
-            amount: charge
-          },
-          transaction_id: failedTransaction.id
-        },
-        suggestions: [
-          'Please recharge your wallet to continue',
-          'Minimum recharge amount: ₹100',
-          `Required top-up: ₹${Math.ceil(charge - currentBalance)}`
-        ]
-      });
-    }
-
-    // 5. Process successful toll deduction
-    const newBalance = currentBalance - charge;
-
-    // Update wallet balance
-    const { error: updateError } = await supabase
-      .from('wallets')
-      .update({ 
-        balance: newBalance,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', vehicle.user_id);
-
-    if (updateError) {
-      throw new Error(`Failed to update wallet balance: ${updateError.message}`);
-    }
-
-    // Create transaction record
-    const transaction = await Transaction.create({
-      user_id: vehicle.user_id,
-      vehicle_id: vehicle.id,
-      toll_gate_id: toll_gate_id,
-      amount: charge,
-      status: 'completed',
-      transaction_type: 'toll_deduction'
+    // 3. Process pending tolls using GeofencingService
+    const processingResult = await GeofencingService.processPendingTollAtGate({
+      vehicleId: vehicle.id,
+      tollGateId: toll_gate_id,
+      userId: vehicle.user_id
     });
 
-    // Create toll passage record
-    console.log('🔧 Creating toll passage with data:', {
-      user_id: vehicle.user_id,
-      vehicle_id: vehicle.id,
-      toll_gate_id: toll_gate_id,
-      charge: charge,
-      balance_after: newBalance,
-      passage_timestamp: timestamp || new Date().toISOString()
-    });
-
-    const tollPassage = await TollPassage.create({
-      user_id: vehicle.user_id,
-      vehicle_id: vehicle.id,
-      toll_gate_id: toll_gate_id,
-      charge: charge,
-      balance_after: newBalance,
-      passage_timestamp: timestamp || new Date().toISOString()
-    });
-
-    console.log('🔧 TollPassage.create() returned:', tollPassage);
-    
-    if (!tollPassage) {
-      throw new Error('TollPassage.create() returned undefined or null');
-    }
-
-    console.log('✅ Toll crossing processed successfully:', {
-      vehicle_license: vehicle.license_plate,
-      toll_gate: tollGate.name,
-      charge: charge,
-      new_balance: newBalance,
-      transaction_id: transaction.id,
-      passage_id: tollPassage.id
-    });
-
-    return res.json({
-      success: true,
-      message: 'Toll deducted successfully',
-      data: {
-        transaction: {
-          id: transaction.id,
-          amount: charge,
-          status: 'completed',
-          remaining_balance: newBalance
-        },
-        toll_passage: {
-          id: tollPassage.id,
-          passage_timestamp: tollPassage.passage_timestamp
-        },
-        toll_gate: {
-          name: tollGate.name,
-          location: tollGate.location,
-          amount: charge
-        },
-        vehicle: {
-          license_plate: vehicle.license_plate,
-          vehicle_type: vehicle.vehicle_type,
-          model: vehicle.model
-        },
-        wallet: {
-          previous_balance: currentBalance,
-          current_balance: newBalance,
-          amount_deducted: charge
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Toll event processing error:', error);
-    throw error;
-  }
-});
-
-/**
- * Get toll passage history for authenticated user
- * GET /api/toll/history
- */
-const getTollHistory = asyncErrorHandler(async (req, res) => {
-  const userId = req.user.id;
-  const { 
-    page = 1, 
-    limit = 10, 
-    vehicle_id = null, 
-    toll_gate_id = null,
-    start_date = null,
-    end_date = null 
-  } = req.query;
-
-  try {
-    const result = await TollPassage.getByUserId(userId, {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      vehicleId: vehicle_id,
-      tollGateId: toll_gate_id
-    });
-
-    // Get user statistics
-    const stats = await TollPassage.getUserStats(userId, '30 days');
+    // 4. Get updated wallet balance
+    const wallet = await Wallet.findByUserId(vehicle.user_id);
 
     res.json({
       success: true,
+      message: processingResult.success 
+        ? `Processed ${processingResult.processed_count} pending toll(s)`
+        : processingResult.message,
       data: {
-        toll_passages: result.passages.map(passage => ({
-          id: passage.id,
-          charge: parseFloat(passage.charge),
-          balance_after: parseFloat(passage.balance_after),
-          passage_timestamp: passage.passage_timestamp,
-          vehicle: {
-            id: passage.vehicles.id,
-            license_plate: passage.vehicles.license_plate,
-            make: passage.vehicles.make,
-            model: passage.vehicles.model,
-            type: passage.vehicles.vehicle_type
-          },
-          toll_gate: {
-            id: passage.toll_gates.id,
-            name: passage.toll_gates.name,
-            location: passage.toll_gates.location,
-            amount: parseFloat(passage.toll_gates.toll_amount)
-          }
-        })),
-        statistics: stats,
-        pagination: result.pagination
+        vehicle: {
+          id: vehicle.id,
+          license_plate: vehicle.plate_number,
+          vehicle_type: vehicle.vehicle_type
+        },
+        toll_gate: {
+          id: tollGate.id,
+          name: tollGate.name,
+          location: tollGate.location
+        },
+        processing_result: processingResult,
+        wallet_balance: wallet ? wallet.balance : 0,
+        timestamp: new Date().toISOString()
       }
     });
+
   } catch (error) {
+    console.error('Error processing pending toll:', error);
+    
+    if (error.message.includes('Insufficient')) {
+      throw new PaymentError(error.message);
+    }
+    
     throw error;
   }
 });
 
 /**
- * Get toll passage history for a specific vehicle
- * GET /api/toll/vehicle/:vehicleId/passages
+ * Get pending toll summary for a user
+ * GET /api/toll/pending/:userId
+ * This endpoint returns pending toll information for a user
  */
-const getVehicleTollHistory = asyncErrorHandler(async (req, res) => {
-  const { vehicleId } = req.params;
-  const { page = 1, limit = 10 } = req.query;
-  const userId = req.user.id;
+const getPendingTolls = asyncErrorHandler(async (req, res) => {
+  const { userId } = req.params;
 
-  // Verify vehicle ownership
-  const { data: vehicle, error: vehicleError } = await supabase
-    .from('vehicles')
-    .select('id, user_id, license_plate, make, model')
-    .eq('id', vehicleId)
-    .single();
-
-  if (vehicleError || !vehicle) {
-    throw new NotFoundError('Vehicle not found');
+  if (!userId) {
+    throw new ValidationError('userId is required');
   }
 
-  if (vehicle.user_id !== userId) {
-    throw new ValidationError('Access denied - vehicle does not belong to user');
+  try {
+    console.log(`📋 Getting pending tolls for user ${userId}`);
+
+    // Get pending toll summary using TollProcessingService
+    const summary = await TollProcessingService.getPendingTollSummary(userId);
+
+    res.json({
+      success: true,
+      message: `Found ${summary.pending_count} pending toll(s)`,
+      data: {
+        user_id: userId,
+        summary,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting pending tolls:', error);
+    throw error;
   }
-
-  const result = await TollPassage.getByVehicleId(vehicleId, {
-    page: parseInt(page),
-    limit: parseInt(limit)
-  });
-
-  res.json({
-    success: true,
-    data: {
-      vehicle: {
-        id: vehicle.id,
-        license_plate: vehicle.license_plate,
-        make: vehicle.make,
-        model: vehicle.model
-      },
-      toll_passages: result.passages.map(passage => ({
-        id: passage.id,
-        charge: parseFloat(passage.charge),
-        balance_after: parseFloat(passage.balance_after),
-        passage_timestamp: passage.passage_timestamp,
-        toll_gate: {
-          id: passage.toll_gates.id,
-          name: passage.toll_gates.name,
-          location: passage.toll_gates.location,
-          amount: parseFloat(passage.toll_gates.toll_amount)
-        }
-      })),
-      pagination: result.pagination
-    }
-  });
 });
 
 /**
- * Get toll gate statistics and recent passages
- * GET /api/toll/gate/:tollGateId/passages
+ * Simulate toll fare calculation
+ * POST /api/toll/simulate
+ * This endpoint calculates what toll would be charged for a given distance and vehicle
  */
-const getTollGatePassages = asyncErrorHandler(async (req, res) => {
-  const { tollGateId } = req.params;
-  const { 
-    page = 1, 
-    limit = 10, 
-    start_date = null, 
-    end_date = null 
-  } = req.query;
+const simulateTollFare = asyncErrorHandler(async (req, res) => {
+  const { userId, vehicleId, distanceKm, vehicleType, tollRoadId } = req.body;
 
-  // Check if toll gate exists
-  const { data: tollGate, error: tollGateError } = await supabase
-    .from('toll_gates')
-    .select('id, name, location, toll_amount')
-    .eq('id', tollGateId)
-    .single();
-
-  if (tollGateError || !tollGate) {
-    throw new NotFoundError('Toll gate not found');
+  if (!userId || !distanceKm || !vehicleType) {
+    throw new ValidationError('userId, distanceKm, and vehicleType are required');
   }
 
-  const result = await TollPassage.getByTollGateId(tollGateId, {
-    page: parseInt(page),
-    limit: parseInt(limit),
-    startDate: start_date,
-    endDate: end_date
-  });
+  try {
+    console.log(`🧮 Simulating toll fare for ${distanceKm}km, ${vehicleType}`);
 
-  res.json({
-    success: true,
-    data: {
-      toll_gate: {
-        id: tollGate.id,
-        name: tollGate.name,
-        location: tollGate.location,
-        toll_amount: parseFloat(tollGate.toll_amount)
-      },
-      passages: result.passages.map(passage => ({
-        id: passage.id,
-        charge: parseFloat(passage.charge),
-        balance_after: parseFloat(passage.balance_after),
-        passage_timestamp: passage.passage_timestamp,
-        user: {
-          name: passage.users.name,
-          email: passage.users.email
+    // Simulate toll processing
+    const simulation = await TollProcessingService.simulateTollProcessing({
+      userId,
+      vehicleId: vehicleId || null,
+      distanceKm: parseFloat(distanceKm),
+      vehicleType,
+      tollRoadId: tollRoadId || 'default-road'
+    });
+
+    res.json({
+      success: true,
+      message: 'Toll fare simulation completed',
+      data: {
+        input_parameters: {
+          userId,
+          vehicleId,
+          distanceKm: parseFloat(distanceKm),
+          vehicleType,
+          tollRoadId
         },
-        vehicle: {
-          id: passage.vehicles.id,
-          license_plate: passage.vehicles.license_plate,
-          make: passage.vehicles.make,
-          model: passage.vehicles.model,
-          type: passage.vehicles.vehicle_type
-        }
-      })),
-      pagination: result.pagination
-    }
-  });
+        simulation,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error simulating toll fare:', error);
+    throw error;
+  }
 });
 
 /**
- * Get recent toll passages across all toll gates
- * GET /api/toll/recent-passages
+ * Get toll processing statistics
+ * GET /api/toll/stats/:userId?
+ * This endpoint returns toll processing statistics for a user or overall
  */
-const getRecentPassages = asyncErrorHandler(async (req, res) => {
-  const { limit = 10 } = req.query;
+const getTollStats = asyncErrorHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { startDate, endDate } = req.query;
 
-  const recentPassages = await TollPassage.getRecent(parseInt(limit));
+  try {
+    console.log(`📊 Getting toll statistics for ${userId || 'all users'}`);
 
-  res.json({
-    success: true,
-    data: {
-      recent_passages: recentPassages.map(passage => ({
-        id: passage.id,
-        charge: parseFloat(passage.charge),
-        balance_after: parseFloat(passage.balance_after),
-        passage_timestamp: passage.passage_timestamp,
-        user: {
-          name: passage.users.name,
-          email: passage.users.email
-        },
-        vehicle: {
-          license_plate: passage.vehicles.license_plate,
-          make: passage.vehicles.make,
-          model: passage.vehicles.model
-        },
-        toll_gate: {
-          name: passage.toll_gates.name,
-          location: passage.toll_gates.location
-        }
-      }))
-    }
-  });
+    const dateRange = {};
+    if (startDate) dateRange.start_date = startDate;
+    if (endDate) dateRange.end_date = endDate;
+
+    // Get processing statistics
+    const stats = await TollProcessingService.getProcessingStats(userId, dateRange);
+
+    res.json({
+      success: true,
+      message: 'Toll statistics retrieved successfully',
+      data: {
+        user_id: userId || 'all',
+        date_range: dateRange,
+        statistics: stats,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting toll stats:', error);
+    throw error;
+  }
 });
+
+/**
+ * Cancel pending toll transactions (admin function)
+ * POST /api/toll/cancel-pending
+ * This endpoint cancels pending toll transactions
+ */
+const cancelPendingTolls = asyncErrorHandler(async (req, res) => {
+  const { transactionIds, reason } = req.body;
+
+  if (!transactionIds || !Array.isArray(transactionIds)) {
+    throw new ValidationError('transactionIds array is required');
+  }
+
+  try {
+    console.log(`❌ Cancelling ${transactionIds.length} pending tolls`);
+
+    // Cancel pending tolls using TollProcessingService
+    const cancellationResult = await TollProcessingService.cancelPendingTolls(
+      transactionIds,
+      reason || 'Cancelled via API'
+    );
+
+    res.json({
+      success: true,
+      message: `Cancelled ${cancellationResult.cancelled_count} of ${transactionIds.length} toll(s)`,
+      data: {
+        cancellation_result: cancellationResult,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error cancelling pending tolls:', error);
+    throw error;
+  }
+});
+
+/**
+ * Get active journeys (admin/monitoring function)
+ * GET /api/toll/active-journeys
+ * This endpoint returns all active journeys for monitoring
+ */
+const getActiveJourneys = asyncErrorHandler(async (req, res) => {
+  try {
+    console.log('🚗 Getting active journeys');
+
+    // Get active journeys from GeofencingService
+    const activeJourneys = await GeofencingService.getActiveJourneys();
+
+    res.json({
+      success: true,
+      message: `Found ${activeJourneys.length} active journey(s)`,
+      data: {
+        active_journeys: activeJourneys,
+        count: activeJourneys.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting active journeys:', error);
+    throw error;
+  }
+});
+
+/**
+ * Cancel an active journey (emergency function)
+ * POST /api/toll/cancel-journey
+ * This endpoint cancels an active journey
+ */
+const cancelActiveJourney = asyncErrorHandler(async (req, res) => {
+  const { journeyId, reason } = req.body;
+
+  if (!journeyId) {
+    throw new ValidationError('journeyId is required');
+  }
+
+  try {
+    console.log(`❌ Cancelling journey ${journeyId}`);
+
+    // Cancel journey using GeofencingService
+    const cancelledJourney = await GeofencingService.cancelJourney(
+      journeyId,
+      reason || 'Cancelled via API'
+    );
+
+    res.json({
+      success: true,
+      message: 'Journey cancelled successfully',
+      data: {
+        cancelled_journey: cancelledJourney,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error cancelling journey:', error);
+    throw error;
+  }
+});
+
+/**
+ * Test endpoint for toll gate detection
+ * POST /api/toll/test-gate-detection
+ * This endpoint simulates vehicle detection at toll gate
+ */
+const testTollGateDetection = asyncErrorHandler(async (req, res) => {
+  const { license_plate, toll_gate_id, detection_type } = req.body;
+
+  if (!license_plate || !toll_gate_id) {
+    throw new ValidationError('license_plate and toll_gate_id are required');
+  }
+
+  console.log('🧪 Testing toll gate detection:', {
+    license_plate: license_plate.toUpperCase(),
+    toll_gate_id,
+    detection_type: detection_type || 'payment_gate'
+  });
+
+  try {
+    // This would simulate the vehicle detection system
+    // In production, this would be triggered by ANPR cameras or RFID readers
+
+    const result = {
+      detection_successful: true,
+      vehicle_identified: true,
+      license_plate: license_plate.toUpperCase(),
+      toll_gate_id,
+      detection_type: detection_type || 'payment_gate',
+      timestamp: new Date().toISOString(),
+      next_action: 'process_pending_tolls',
+      message: 'Vehicle detected at toll gate. Ready to process pending tolls.'
+    };
+
+    res.json({
+      success: true,
+      message: 'Toll gate detection test completed',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error in toll gate detection test:', error);
+    throw error;
+  }
+});
+
 module.exports = {
-  handleTollEvent,
-  getTollHistory,
-  getVehicleTollHistory,
-  getTollGatePassages,
-  getRecentPassages
+  processPendingToll,
+  getPendingTolls,
+  simulateTollFare,
+  getTollStats,
+  cancelPendingTolls,
+  getActiveJourneys,
+  cancelActiveJourney,
+  testTollGateDetection
 };

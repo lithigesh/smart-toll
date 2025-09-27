@@ -4,40 +4,44 @@ class Vehicle {
   /**
    * Create a new vehicle
    * @param {Object} vehicleData - Vehicle data
-   * @param {number} vehicleData.user_id - User ID
-   * @param {string} vehicleData.vehicle_no - Vehicle number
-   * @param {string} vehicleData.vehicle_type - Vehicle type (car, truck, bus, etc.)
+   * @param {string} vehicleData.user_id - User ID
+   * @param {string} vehicleData.plate_number - Vehicle plate number
+   * @param {string} vehicleData.vehicle_type - Vehicle type (car, truck, bus, bike)
+   * @param {string} vehicleData.model - Vehicle model (optional)
    * @returns {Promise<Object>} - Created vehicle object
    */
-  static async create({ user_id, vehicle_no, vehicle_type = 'car' }) {
+  static async create({ user_id, plate_number, vehicle_type = 'car', model }) {
     const result = await query(
-      `INSERT INTO vehicles (user_id, vehicle_no, vehicle_type, created_at)
-       VALUES ($1, $2, $3, NOW())
-       RETURNING id, user_id, vehicle_no, vehicle_type, created_at`,
-      [user_id, vehicle_no.toUpperCase(), vehicle_type]
+      `INSERT INTO vehicles (user_id, plate_number, vehicle_type, model, registered_at, created_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
+       RETURNING id, user_id, plate_number, vehicle_type, model, registered_at, created_at`,
+      [user_id, plate_number.toUpperCase(), vehicle_type, model]
     );
     return result.rows[0];
   }
 
   /**
-   * Find vehicle by vehicle number
-   * @param {string} vehicleNo - Vehicle number
+   * Find vehicle by plate number
+   * @param {string} plateNumber - Vehicle plate number
    * @returns {Promise<Object|null>} - Vehicle object or null if not found
    */
-  static async findByVehicleNo(vehicleNo) {
+  static async findByPlateNumber(plateNumber) {
     const result = await query(
       `SELECT 
          v.id,
          v.user_id,
-         v.vehicle_no,
+         v.plate_number,
          v.vehicle_type,
+         v.model,
+         v.is_active,
+         v.registered_at,
          v.created_at,
          u.name as owner_name,
          u.email as owner_email
        FROM vehicles v
        JOIN users u ON v.user_id = u.id
-       WHERE v.vehicle_no = $1`,
-      [vehicleNo.toUpperCase()]
+       WHERE v.plate_number = $1 AND v.is_active = true`,
+      [plateNumber.toUpperCase()]
     );
     return result.rows[0] || null;
   }
@@ -52,8 +56,11 @@ class Vehicle {
       `SELECT 
          v.id,
          v.user_id,
-         v.vehicle_no,
+         v.plate_number,
          v.vehicle_type,
+         v.model,
+         v.is_active,
+         v.registered_at,
          v.created_at,
          u.name as owner_name,
          u.email as owner_email
@@ -72,10 +79,10 @@ class Vehicle {
    */
   static async findByUserId(userId) {
     const result = await query(
-      `SELECT id, user_id, vehicle_no, vehicle_type, created_at 
+      `SELECT id, user_id, plate_number, vehicle_type, model, is_active, registered_at, created_at 
        FROM vehicles 
-       WHERE user_id = $1 
-       ORDER BY created_at DESC`,
+       WHERE user_id = $1 AND is_active = true
+       ORDER BY registered_at DESC`,
       [userId]
     );
     return result.rows;
@@ -87,9 +94,9 @@ class Vehicle {
    * @param {number} excludeUserId - User ID to exclude from check (for updates)
    * @returns {Promise<boolean>} - True if vehicle number exists
    */
-  static async vehicleNoExists(vehicleNo, excludeUserId = null) {
-    let queryText = 'SELECT id FROM vehicles WHERE vehicle_no = $1';
-    const params = [vehicleNo.toUpperCase()];
+  static async plateNumberExists(plateNumber, excludeUserId = null) {
+    let queryText = 'SELECT id FROM vehicles WHERE plate_number = $1 AND is_active = true';
+    const params = [plateNumber.toUpperCase()];
     
     if (excludeUserId) {
       queryText += ' AND user_id != $2';
@@ -108,16 +115,16 @@ class Vehicle {
    * @returns {Promise<Object>} - Updated vehicle object
    */
   static async update(vehicleId, userId, updates) {
-    const allowedFields = ['vehicle_no', 'vehicle_type'];
+    const allowedFields = ['plate_number', 'vehicle_type', 'model'];
     const updateFields = Object.keys(updates).filter(key => allowedFields.includes(key));
     
     if (updateFields.length === 0) {
       throw new Error('No valid fields to update');
     }
 
-    // If updating vehicle_no, normalize it
-    if (updates.vehicle_no) {
-      updates.vehicle_no = updates.vehicle_no.toUpperCase();
+    // If updating plate_number, normalize it
+    if (updates.plate_number) {
+      updates.plate_number = updates.plate_number.toUpperCase();
     }
 
     const setClause = updateFields.map((field, index) => `${field} = $${index + 3}`).join(', ');
@@ -126,8 +133,8 @@ class Vehicle {
     const result = await query(
       `UPDATE vehicles 
        SET ${setClause}, updated_at = NOW()
-       WHERE id = $1 AND user_id = $2
-       RETURNING id, user_id, vehicle_no, vehicle_type, created_at`,
+       WHERE id = $1 AND user_id = $2 AND is_active = true
+       RETURNING id, user_id, plate_number, vehicle_type, model, updated_at`,
       values
     );
 
@@ -140,9 +147,17 @@ class Vehicle {
    * @param {number} userId - User ID (for authorization)
    * @returns {Promise<boolean>} - True if deleted successfully
    */
+  /**
+   * Delete vehicle (soft delete)
+   * @param {number} vehicleId - Vehicle ID
+   * @param {number} userId - User ID (for authorization)
+   * @returns {Promise<boolean>} - True if deleted successfully
+   */
   static async delete(vehicleId, userId) {
     const result = await query(
-      'DELETE FROM vehicles WHERE id = $1 AND user_id = $2',
+      `UPDATE vehicles 
+       SET is_active = false, updated_at = NOW()
+       WHERE id = $1 AND user_id = $2`,
       [vehicleId, userId]
     );
     return result.rowCount > 0;
