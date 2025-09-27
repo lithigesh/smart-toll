@@ -34,10 +34,10 @@ const errorHandler = (err, req, res, next) => {
     case 'ValidationError':
       statusCode = 400;
       message = 'Validation Error';
-      details = Object.values(err.errors).map(error => ({
+      details = err.errors ? Object.values(err.errors).map(error => ({
         field: error.path,
         message: error.message
-      }));
+      })) : [];
       break;
 
     case 'CastError':

@@ -34,8 +34,19 @@ class GeofencingService {
       const currentZones = await TollRoadZone.findZonesContainingPoint(latitude, longitude);
       const currentZone = currentZones && currentZones.length > 0 ? currentZones[0] : null;
 
-      // Check if vehicle has an active journey
-      const activeJourney = await Journey.getActiveByVehicleId(vehicleId);
+      console.log(`📍 Current zones found: ${currentZones?.length || 0}`);
+      if (currentZone) {
+        console.log(`📍 Vehicle is in zone: ${currentZone.name}`);
+      }
+
+      // For now, let's simplify and not use Journey model until it's fully working
+      let activeJourney = null;
+      try {
+        activeJourney = await Journey.getActiveByVehicleId(vehicleId);
+      } catch (journeyError) {
+        console.log(`⚠️ Journey lookup failed (expected): ${journeyError.message}`);
+        // Continue without journey - this is expected until Journey model is fully implemented
+      }
 
       if (currentZone && !activeJourney) {
         // ENTRY: Vehicle entered a toll zone
@@ -48,7 +59,7 @@ class GeofencingService {
           longitude
         });
 
-        console.log(`✅ Vehicle ${vehicleId} entered zone: ${currentZone.zone_name}`);
+        console.log(`✅ Vehicle ${vehicleId} entered zone: ${currentZone.name}`);
 
       } else if (!currentZone && activeJourney) {
         // EXIT: Vehicle exited toll zone
@@ -65,9 +76,9 @@ class GeofencingService {
 
       } else if (currentZone && activeJourney) {
         // CONTINUING: Vehicle is still in a toll zone
-        if (currentZone.zone_id === activeJourney.zone_id) {
+        if (currentZone.id === activeJourney.zone_id) {
           result.action = 'continuing_in_zone';
-          console.log(`➡️ Vehicle ${vehicleId} continuing in zone: ${currentZone.zone_name}`);
+          console.log(`➡️ Vehicle ${vehicleId} continuing in zone: ${currentZone.name}`);
         } else {
           // ZONE CHANGE: Vehicle moved to a different toll zone
           result.action = 'zone_change';
@@ -90,7 +101,7 @@ class GeofencingService {
             longitude
           });
 
-          console.log(`🔄 Vehicle ${vehicleId} changed zones: ${activeJourney.zone_name} → ${currentZone.zone_name}`);
+          console.log(`🔄 Vehicle ${vehicleId} changed zones: ${activeJourney.zone_name || 'Previous Zone'} → ${currentZone.name}`);
         }
       } else {
         // NOT IN ZONE: Vehicle is outside all toll zones
@@ -120,11 +131,21 @@ class GeofencingService {
     try {
       console.log(`🚀 Handling zone entry for vehicle ${vehicleId}`);
 
+      // Extract toll_road_id from the related toll_roads array (use first one if multiple)
+      const tollRoadId = zoneData.toll_roads && zoneData.toll_roads.length > 0 
+        ? zoneData.toll_roads[0].id 
+        : null;
+      
+      if (!tollRoadId) {
+        console.error('No toll road ID found for zone:', zoneData);
+        throw new Error('Invalid zone data: missing toll road information');
+      }
+
       // Create journey entry
       const journey = await Journey.create({
         vehicle_id: vehicleId,
-        toll_road_id: zoneData.toll_road_id,
-        zone_id: zoneData.zone_id,
+        toll_road_id: tollRoadId,
+        zone_id: zoneData.id,
         entry_lat: latitude,
         entry_lon: longitude
       });
@@ -134,13 +155,13 @@ class GeofencingService {
         user_id: userId,
         type: 'entry',
         title: 'Toll Zone Entry',
-        message: `Vehicle entered toll zone: ${zoneData.zone_name}`,
+        message: `Vehicle entered toll zone: ${zoneData.name}`,
         priority: 'medium',
         data: {
           journey_id: journey.id,
-          zone_id: zoneData.zone_id,
-          zone_name: zoneData.zone_name,
-          road_name: zoneData.road_name,
+          zone_id: zoneData.id,
+          zone_name: zoneData.name,
+          road_name: zoneData.toll_roads[0]?.name || 'Unknown Road',
           entry_time: journey.entry_time,
           entry_coordinates: [longitude, latitude]
         }
@@ -148,9 +169,9 @@ class GeofencingService {
 
       return {
         journey_id: journey.id,
-        zone_id: zoneData.zone_id,
-        zone_name: zoneData.zone_name,
-        road_name: zoneData.road_name,
+        zone_id: zoneData.id,
+        zone_name: zoneData.name,
+        road_name: zoneData.toll_roads[0]?.name || 'Unknown Road',
         entry_time: journey.entry_time,
         status: 'active'
       };

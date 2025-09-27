@@ -7,7 +7,8 @@ const {
   getTransactions,
   getDailySummary,
   getWalletStats,
-  getLowBalanceAlert
+  getLowBalanceAlert,
+  deduct
 } = require('../controllers/walletController');
 
 // Import middleware
@@ -17,7 +18,7 @@ const {
   validateDateRange,
   validateTransactionType
 } = require('../middleware/validate');
-const { query } = require('express-validator');
+const { query, body } = require('express-validator');
 
 // All wallet routes require authentication
 router.use(authMiddleware);
@@ -79,5 +80,21 @@ router.get('/low-balance-alert', [
     .isFloat({ min: 0 })
     .withMessage('Threshold must be a non-negative number')
 ], getLowBalanceAlert);
+
+/**
+ * @route   POST /api/wallet/deduct
+ * @desc    Deduct amount from user's wallet
+ * @access  Private
+ */
+router.post('/deduct', [
+  body('amount')
+    .notEmpty()
+    .isFloat({ min: 0.01 })
+    .withMessage('Amount must be positive'),
+  body('description')
+    .notEmpty()
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Description must be between 5-200 characters')
+], deduct);
 
 module.exports = router;

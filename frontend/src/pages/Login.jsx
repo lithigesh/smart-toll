@@ -8,8 +8,8 @@ import { Label } from '../components/ui/Label';
 import { Loader2, Mail, Lock, LogIn } from 'lucide-react';
 
 const Login = () => {
-  const [email, setEmail] = useState('test@example.com');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState('test@smarttoll.com');
+  const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   

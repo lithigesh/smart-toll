@@ -82,6 +82,29 @@ const validateVehicleRegistration = [
     .trim()
     .isIn(['car', 'truck', 'bus', 'motorcycle', 'auto', 'other'])
     .withMessage('Invalid vehicle type'),
+
+  body('device_id')
+    .trim()
+    .notEmpty()
+    .withMessage('Device ID is required')
+    .isLength({ max: 100 })
+    .withMessage('Device ID must be 100 characters or less')
+    .custom((value) => {
+      // Device ID format validation
+      const deviceIdPatterns = [
+        /^ESP32-[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}$/, // ESP32 MAC format
+        /^IOT-[A-Z]+-\d{3}-[A-Z0-9]+$/, // Custom IoT format
+        /^[A-Z]+-[A-Z]+-\d{3}-[A-Z]+$/, // Custom device format
+        /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/, // UUID format
+        /^QR-[A-Z0-9]{8,16}$/ // QR code format
+      ];
+      
+      const isValidFormat = deviceIdPatterns.some(pattern => pattern.test(value));
+      if (!isValidFormat) {
+        throw new Error('Invalid device ID format. Supported formats: ESP32-MAC, IOT-DEVICE-ID, UUID, or QR-CODE');
+      }
+      return true;
+    }),
   
   handleValidationErrors
 ];

@@ -24,22 +24,36 @@ class GpsLog {
    * @returns {Promise<Object>} - Created GPS log entry
    */
   static async logPosition(gpsData) {
-    // Use PostGIS to create point geometry from latitude and longitude
-    const { data, error } = await supabase.rpc('log_gps_position', {
-      p_vehicle_id: gpsData.vehicle_id,
-      p_latitude: gpsData.latitude,
-      p_longitude: gpsData.longitude,
-      p_speed: gpsData.speed || null,
-      p_heading: gpsData.heading || null,
-      p_accuracy: gpsData.accuracy || null
-    });
-    
-    if (error) {
-      console.error('Error logging GPS position:', error);
+    try {
+      const gpsLogEntry = {
+        vehicle_id: gpsData.vehicle_id,
+        latitude: parseFloat(gpsData.latitude),
+        longitude: parseFloat(gpsData.longitude),
+        speed: gpsData.speed ? parseFloat(gpsData.speed) : null,
+        heading: gpsData.heading ? parseFloat(gpsData.heading) : null,
+        accuracy: gpsData.accuracy ? parseFloat(gpsData.accuracy) : null,
+        location: `POINT(${gpsData.longitude} ${gpsData.latitude})`,
+        logged_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('gps_logs')
+        .insert(gpsLogEntry)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error logging GPS position:', error);
+        throw new Error(`Failed to log GPS position: ${error.message}`);
+      }
+      
+      console.log(`📍 GPS position logged: ${data.latitude}, ${data.longitude}`);
+      return data;
+
+    } catch (error) {
+      console.error('Error in logPosition:', error);
       throw error;
     }
-    
-    return data;
   }
 
   /**

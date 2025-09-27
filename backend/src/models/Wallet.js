@@ -269,6 +269,73 @@ class Wallet {
   }
 
   /**
+   * Deduct amount from wallet (simple deduction using Supabase)
+   * @param {number} userId - User ID
+   * @param {number} amount - Amount to deduct
+   * @returns {Promise<number>} - New balance after deduction
+   * @throws {Error} - If insufficient balance or wallet not found
+   */
+  static async deduct(userId, amount) {
+    console.log(`Starting deduct operation for user ${userId}, amount: ${amount}`);
+    
+    // Get current wallet
+    const { data: wallet, error: fetchError } = await supabase
+      .from('wallets')
+      .select('id, user_id, balance, updated_at')
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching wallet for deduction:', fetchError);
+      throw new Error(`Failed to fetch wallet: ${fetchError.message}`);
+    }
+
+    if (!wallet) {
+      throw new Error('Wallet not found');
+    }
+
+    const currentBalance = parseFloat(wallet.balance);
+    const deductAmount = parseFloat(amount);
+
+    // Check sufficient balance
+    if (currentBalance < deductAmount) {
+      throw new Error(`Insufficient balance. Current: ₹${currentBalance}, Required: ₹${deductAmount}`);
+    }
+
+    // Calculate new balance
+    const newBalance = currentBalance - deductAmount;
+
+    // Update balance using Supabase
+    const { data: updatedWallet, error: updateError } = await supabase
+      .from('wallets')
+      .update({ 
+        balance: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating wallet balance:', updateError);
+      throw new Error(`Failed to update wallet balance: ${updateError.message}`);
+    }
+
+    if (!updatedWallet) {
+      throw new Error('Failed to update wallet balance - no response');
+    }
+
+    console.log('Wallet deducted successfully:', {
+      userId,
+      amount: deductAmount,
+      previousBalance: currentBalance,
+      newBalance: updatedWallet.balance
+    });
+
+    return parseFloat(updatedWallet.balance);
+  }
+
+  /**
    * Set wallet balance (admin function)
    * @param {number} userId - User ID
    * @param {number} newBalance - New balance to set

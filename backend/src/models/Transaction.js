@@ -29,12 +29,12 @@ class Transaction {
         user_id,
         vehicle_id,
         journey_id,
-        type: 'toll_charge',
+        type: 'toll',
         amount: parseFloat(amount),
         status: 'pending',
         description,
         metadata,
-        transaction_date: new Date().toISOString()
+        created_at: new Date().toISOString()
       };
 
       const { data, error } = await supabase
@@ -407,6 +407,88 @@ class Transaction {
 
     } catch (error) {
       console.error('Error in bulkProcessPending:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user transactions with pagination and filtering
+   * @param {string} userId - User ID
+   * @param {Object} options - Query options
+   * @param {number} options.limit - Limit of records
+   * @param {number} options.offset - Offset for pagination
+   * @param {string} options.type - Transaction type filter
+   * @param {string} options.startDate - Start date filter
+   * @param {string} options.endDate - End date filter
+   * @returns {Promise<Object>} - Transactions data
+   */
+  static async getUserTransactions(userId, options = {}) {
+    try {
+      const {
+        limit = 20,
+        offset = 0,
+        type = null,
+        startDate = null,
+        endDate = null
+      } = options;
+
+      let query = supabase
+        .from('transactions')
+        .select(`
+          *,
+          vehicles:vehicle_id (
+            plate_number,
+            vehicle_type
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      // Apply filters
+      if (type) {
+        query = query.eq('type', type);
+      }
+
+      if (startDate) {
+        query = query.gte('created_at', startDate);
+      }
+
+      if (endDate) {
+        query = query.lte('created_at', endDate);
+      }
+
+      // Apply pagination
+      query = query.range(offset, offset + limit - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        console.error('Error fetching user transactions:', error);
+        throw new Error(`Failed to fetch user transactions: ${error.message}`);
+      }
+
+      // Get total count for pagination
+      const { count: totalCount, error: countError } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (countError) {
+        console.error('Error counting transactions:', countError);
+      }
+
+      return {
+        transactions: data || [],
+        pagination: {
+          total: totalCount || 0,
+          limit: parseInt(limit),
+          offset: parseInt(offset),
+          has_more: (offset + limit) < (totalCount || 0)
+        }
+      };
+
+    } catch (error) {
+      console.error('Error in getUserTransactions:', error);
       throw error;
     }
   }

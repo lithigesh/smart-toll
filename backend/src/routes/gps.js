@@ -49,6 +49,8 @@ router.post('/log', [
       throw new ValidationError('Vehicle not found or access denied');
     }
 
+    console.log(`📍 Logging GPS position for verified vehicle: ${vehicle.plate_number}`);
+
     // 2. Log GPS position
     const gpsLog = await GpsLog.logPosition({
       vehicle_id,
@@ -59,7 +61,11 @@ router.post('/log', [
       accuracy: accuracy ? parseFloat(accuracy) : null
     });
 
+    console.log(`✅ GPS position logged successfully`);
+
     // 3. Process geofencing (zone entry/exit detection)
+    console.log(`🛰️ Processing geofencing for position: ${latitude}, ${longitude}`);
+    
     const geofencingResult = await GeofencingService.processGpsPosition({
       vehicleId: vehicle_id,
       latitude: parseFloat(latitude),
@@ -69,29 +75,29 @@ router.post('/log', [
 
     console.log(`🎯 Geofencing result: ${geofencingResult.action}`);
 
-    // 4. Prepare response
+    // 4. Prepare response with geofencing results
     const response = {
       success: true,
       message: 'GPS position logged and processed successfully',
       data: {
         gps_log: {
           id: gpsLog.id,
-          timestamp: gpsLog.timestamp,
+          logged_at: gpsLog.logged_at,
           latitude: gpsLog.latitude,
           longitude: gpsLog.longitude,
           speed: gpsLog.speed,
           accuracy: gpsLog.accuracy
         },
-        geofencing: geofencingResult,
         vehicle: {
           id: vehicle.id,
           plate_number: vehicle.plate_number,
           vehicle_type: vehicle.vehicle_type
-        }
+        },
+        geofencing: geofencingResult
       }
     };
 
-    // Include additional context based on geofencing action
+    // 5. Include additional context based on geofencing action
     if (geofencingResult.action === 'zone_entry' && geofencingResult.journey_entry) {
       response.data.toll_zone_entered = {
         journey_id: geofencingResult.journey_entry.journey_id,
@@ -99,16 +105,26 @@ router.post('/log', [
         road_name: geofencingResult.journey_entry.road_name,
         entry_time: geofencingResult.journey_entry.entry_time
       };
+      console.log(`🚪 Vehicle entered toll zone: ${geofencingResult.journey_entry.zone_name}`);
     }
 
     if (geofencingResult.action === 'zone_exit' && geofencingResult.journey_exit) {
       response.data.toll_calculated = {
         journey_id: geofencingResult.journey_exit.journey_id,
-        transaction_id: geofencingResult.journey_exit.transaction_id,
         distance_km: geofencingResult.journey_exit.distance_km,
         fare_amount: geofencingResult.journey_exit.fare_amount,
-        status: geofencingResult.journey_exit.status
+        toll_status: geofencingResult.journey_exit.status
       };
+      console.log(`🚪 Vehicle exited toll zone. Distance: ${geofencingResult.journey_exit.distance_km}km, Fare: ₹${geofencingResult.journey_exit.fare_amount}`);
+    }
+
+    // 6. Add notifications if any
+    if (geofencingResult.notifications && geofencingResult.notifications.length > 0) {
+      response.data.notifications = geofencingResult.notifications;
+    }
+
+    if (geofencingResult.warnings && geofencingResult.warnings.length > 0) {
+      response.data.warnings = geofencingResult.warnings;
     }
 
     res.json(response);

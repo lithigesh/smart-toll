@@ -45,7 +45,36 @@ router.put('/vehicles/:vehicleId', [
     .optional()
     .trim()
     .isIn(['car', 'truck', 'bus', 'motorcycle', 'auto', 'other'])
-    .withMessage('Invalid vehicle type')
+    .withMessage('Invalid vehicle type'),
+
+  body('model')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Model must be 100 characters or less'),
+
+  body('device_id')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Device ID must be 100 characters or less')
+    .custom((value) => {
+      if (!value) return true; // Optional field
+      
+      const deviceIdPatterns = [
+        /^ESP32-[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}$/, 
+        /^IOT-[A-Z]+-\d{3}-[A-Z0-9]+$/, 
+        /^[A-Z]+-[A-Z]+-\d{3}-[A-Z]+$/, 
+        /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/, 
+        /^QR-[A-Z0-9]{8,16}$/
+      ];
+      
+      const isValidFormat = deviceIdPatterns.some(pattern => pattern.test(value));
+      if (!isValidFormat) {
+        throw new Error('Invalid device ID format');
+      }
+      return true;
+    })
 ], updateVehicle);
 
 router.delete('/vehicles/:vehicleId', [
