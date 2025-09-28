@@ -25,13 +25,24 @@ class Recharge {
    * @returns {Promise<Object>} - Created recharge object
    */
   static async create({ user_id, order_id, payment_id, amount, status = 'created' }) {
-    const result = await query(
-      `INSERT INTO recharges (user_id, gateway_order_id, gateway_payment_id, amount, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       RETURNING id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at`,
-      [user_id, order_id, payment_id, amount, status]
-    );
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('recharges')
+      .insert({
+        user_id,
+        gateway_order_id: order_id,
+        gateway_payment_id: payment_id,
+        amount,
+        status,
+        created_at: new Date().toISOString()
+      })
+      .select('id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at')
+      .single();
+    
+    if (error) {
+      throw new Error(`Failed to create recharge: ${error.message}`);
+    }
+    
+    return data;
   }
 
   /**
@@ -68,11 +79,18 @@ class Recharge {
    * @returns {Promise<Object|null>} - Recharge object or null if not found
    */
   static async findByPaymentId(paymentId) {
-    const result = await query(
-      'SELECT id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at FROM recharges WHERE gateway_payment_id = $1',
-      [paymentId]
-    );
-    return result.rows[0] || null;
+    const { data, error } = await supabase
+      .from('recharges')
+      .select('id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at')
+      .eq('gateway_payment_id', paymentId)
+      .single();
+    
+    if (error) {
+      console.log('Error finding recharge by payment ID:', error);
+      return null;
+    }
+    
+    return data;
   }
 
   /**
@@ -81,11 +99,18 @@ class Recharge {
    * @returns {Promise<Object|null>} - Recharge object or null if not found
    */
   static async findByOrderId(orderId) {
-    const result = await query(
-      'SELECT id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at FROM recharges WHERE gateway_order_id = $1',
-      [orderId]
-    );
-    return result.rows[0] || null;
+    const { data, error } = await supabase
+      .from('recharges')
+      .select('id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at')
+      .eq('gateway_order_id', orderId)
+      .single();
+    
+    if (error) {
+      console.log('Error finding recharge by order ID:', error);
+      return null;
+    }
+    
+    return data;
   }
 
   /**
@@ -109,14 +134,21 @@ class Recharge {
    * @returns {Promise<Object>} - Updated recharge object
    */
   static async updateStatus(id, status) {
-    const result = await query(
-      `UPDATE recharges 
-       SET status = $1, updated_at = NOW()
-       WHERE id = $2
-       RETURNING id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at`,
-      [status, id]
-    );
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('recharges')
+      .update({ 
+        status, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', id)
+      .select('id, user_id, gateway_order_id, gateway_payment_id, amount, status, created_at')
+      .single();
+    
+    if (error) {
+      throw new Error(`Failed to update recharge status: ${error.message}`);
+    }
+    
+    return data;
   }
 
   /**
@@ -147,24 +179,29 @@ class Recharge {
    * @returns {Promise<Array>} - Array of recharges
    */
   static async getUserRecharges(userId, { limit = 20, offset = 0, status = null } = {}) {
-    let queryText = `
-      SELECT id, gateway_order_id, gateway_payment_id, amount, status, created_at 
-      FROM recharges 
-      WHERE user_id = $1
-    `;
+    console.log('getUserRecharges called with:', { userId, limit, offset, status });
     
-    const params = [userId];
+    let query = supabase
+      .from('recharges')
+      .select('id, gateway_order_id, gateway_payment_id, amount, status, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
     
     if (status) {
-      queryText += ' AND status = $2';
-      params.push(status);
+      query = query.eq('status', status);
     }
     
-    queryText += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit, offset);
-
-    const result = await query(queryText, params);
-    return result.rows;
+    console.log('Executing Supabase query for user recharges...');
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Supabase error in getUserRecharges:', error);
+      throw new Error(`Failed to fetch recharges: ${error.message}`);
+    }
+    
+    console.log('Supabase returned data:', data);
+    return data || [];
   }
 
   /**
@@ -173,27 +210,60 @@ class Recharge {
    * @returns {Promise<Object>} - Recharge statistics
    */
   static async getUserStats(userId) {
-    const result = await query(
-      `SELECT 
-         COUNT(*) as total_recharges,
-         COUNT(CASE WHEN status = 'paid' THEN 1 END) as successful_recharges,
-         COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_recharges,
-         COALESCE(SUM(CASE WHEN status = 'paid' THEN amount END), 0) as total_amount,
-         COALESCE(AVG(CASE WHEN status = 'paid' THEN amount END), 0) as average_amount,
-         MAX(CASE WHEN status = 'paid' THEN created_at END) as last_successful_recharge
-       FROM recharges 
-       WHERE user_id = $1`,
-      [userId]
-    );
+    try {
+      console.log('getUserStats called for user:', userId);
+      
+      // Get all user recharges to calculate stats
+      const { data: recharges, error } = await supabase
+        .from('recharges')
+        .select('amount, status, created_at')
+        .eq('user_id', userId);
 
-    return result.rows[0] || {
-      total_recharges: 0,
-      successful_recharges: 0,
-      failed_recharges: 0,
-      total_amount: 0,
-      average_amount: 0,
-      last_successful_recharge: null
-    };
+      if (error) {
+        console.error('Supabase error in getUserStats:', error);
+        throw new Error(`Failed to fetch recharge stats: ${error.message}`);
+      }
+      
+      console.log('getUserStats raw data from Supabase:', recharges);
+
+      if (!recharges || recharges.length === 0) {
+        return {
+          total_recharges: 0,
+          successful_recharges: 0,
+          failed_recharges: 0,
+          total_amount: 0,
+          average_amount: 0,
+          last_successful_recharge: null
+        };
+      }
+
+      const paidRecharges = recharges.filter(r => r.status === 'paid');
+      const failedRecharges = recharges.filter(r => r.status === 'failed');
+      const totalAmount = paidRecharges.reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+      const averageAmount = paidRecharges.length > 0 ? totalAmount / paidRecharges.length : 0;
+      const lastSuccessful = paidRecharges.length > 0 
+        ? paidRecharges.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0].created_at 
+        : null;
+
+      return {
+        total_recharges: recharges.length,
+        successful_recharges: paidRecharges.length,
+        failed_recharges: failedRecharges.length,
+        total_amount: totalAmount,
+        average_amount: averageAmount,
+        last_successful_recharge: lastSuccessful
+      };
+    } catch (error) {
+      console.error('Error in getUserStats:', error);
+      return {
+        total_recharges: 0,
+        successful_recharges: 0,
+        failed_recharges: 0,
+        total_amount: 0,
+        average_amount: 0,
+        last_successful_recharge: null
+      };
+    }
   }
 
   /**

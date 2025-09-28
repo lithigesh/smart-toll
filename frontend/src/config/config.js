@@ -1,6 +1,6 @@
 // Environment configuration
 const config = {
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 };
 
 // API endpoints
@@ -25,6 +25,12 @@ export const API_ENDPOINTS = {
     verify: `${config.apiBaseUrl}/payment/verify`,
     history: `${config.apiBaseUrl}/payment/history`,
     details: `${config.apiBaseUrl}/payment`
+  },
+  vehicles: {
+    list: `${config.apiBaseUrl}/vehicles/user`,
+    add: `${config.apiBaseUrl}/vehicles`,
+    update: `${config.apiBaseUrl}/vehicles`,
+    delete: `${config.apiBaseUrl}/vehicles`
   },
   tollPassages: {
     user: `${config.apiBaseUrl}/toll/passages/user`,

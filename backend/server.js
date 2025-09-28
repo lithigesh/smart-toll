@@ -18,6 +18,7 @@ const gpsRoutes = require('./src/routes/gps');
 const distanceRoutes = require('./src/routes/distance');
 const tollProcessingRoutes = require('./src/routes/toll-processing');
 const notificationsRoutes = require('./src/routes/notifications');
+const vehicleRoutes = require('./src/routes/vehicle');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -83,6 +84,7 @@ app.use('/api/gps', gpsRoutes);
 app.use('/api/distance', distanceRoutes);
 app.use('/api/toll-processing', tollProcessingRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/vehicles', vehicleRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -98,7 +100,8 @@ app.get('/', (req, res) => {
       gps: '/api/gps',
       distance: '/api/distance',
       tollProcessing: '/api/toll-processing',
-      notifications: '/api/notifications'
+      notifications: '/api/notifications',
+      vehicles: '/api/vehicles'
     }
   });
 });

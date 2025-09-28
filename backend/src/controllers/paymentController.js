@@ -337,19 +337,25 @@ const getPaymentHistory = asyncErrorHandler(async (req, res) => {
   const userId = req.user.id;
   const { limit = 20, offset = 0, status } = req.query;
 
+  console.log(`Fetching payment history for user ${userId} with params:`, { limit, offset, status });
+
   const recharges = await Recharge.getUserRecharges(userId, {
     limit: parseInt(limit),
     offset: parseInt(offset),
     status
   });
 
-  const stats = await Recharge.getUserStats(userId);
+  console.log(`Found ${recharges.length} recharges for user ${userId}`);
+  console.log('Recharges data:', JSON.stringify(recharges, null, 2));
 
-  res.json({
+  const stats = await Recharge.getUserStats(userId);
+  console.log('User stats:', JSON.stringify(stats, null, 2));
+
+  const response = {
     recharges: recharges.map(recharge => ({
       id: recharge.id,
-      order_id: recharge.razorpay_order_id,
-      payment_id: recharge.razorpay_payment_id,
+      order_id: recharge.gateway_order_id,
+      payment_id: recharge.gateway_payment_id,
       amount: parseFloat(recharge.amount),
       amount_formatted: `₹${recharge.amount}`,
       status: recharge.status,
@@ -368,7 +374,14 @@ const getPaymentHistory = asyncErrorHandler(async (req, res) => {
       offset: parseInt(offset),
       has_more: recharges.length === parseInt(limit)
     }
+  };
+
+  console.log(`Sending payment history response for user ${userId}:`, {
+    rechargeCount: response.recharges.length,
+    stats: response.stats
   });
+
+  res.json(response);
 });
 
 /**

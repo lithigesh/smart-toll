@@ -110,6 +110,55 @@ const validateVehicleRegistration = [
 ];
 
 /**
+ * Validation rules for vehicle management (frontend form)
+ */
+const validateVehicle = [
+  body('license_plate')
+    .trim()
+    .notEmpty()
+    .withMessage('License plate is required')
+    .isLength({ min: 4, max: 20 })
+    .withMessage('License plate must be between 4 and 20 characters'),
+  
+  body('vehicle_type')
+    .optional()
+    .trim()
+    .isIn(['car', 'truck', 'bus', 'bike', 'other'])
+    .withMessage('Invalid vehicle type'),
+
+  body('make')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Make must be 50 characters or less'),
+
+  body('model')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Model must be 50 characters or less'),
+
+  body('year')
+    .optional()
+    .isInt({ min: 1900, max: new Date().getFullYear() + 1 })
+    .withMessage('Year must be a valid year'),
+
+  body('color')
+    .optional()
+    .trim()
+    .isLength({ max: 30 })
+    .withMessage('Color must be 30 characters or less'),
+
+  body('device_id')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Device ID must be 100 characters or less'),
+  
+  handleValidationErrors
+];
+
+/**
  * Validation rules for toll gate creation
  */
 const validateTollGateCreation = [
@@ -310,6 +359,7 @@ module.exports = {
   validateUserRegistration,
   validateUserLogin,
   validateVehicleRegistration,
+  validateVehicle,
   validateTollGateCreation,
   validatePaymentOrder,
   validatePaymentVerification,
