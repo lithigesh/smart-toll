@@ -119,28 +119,9 @@ app.use('/api/vehicles', vehicleRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Smart Toll Backend API',
-    description: 'Automated toll collection system with GPS-based geofencing and real-time payment processing',
-    version: process.env.npm_package_version || '1.0.0',
-    documentation: {
-      readme: 'See README.md for comprehensive API documentation',
-      healthCheck: '/health',
-      apiPrefix: '/api'
-    },
-    endpoints: {
-      authentication: '/api/auth',
-      payment: '/api/payment',
-      toll: '/api/toll',
-      wallet: '/api/wallet',
-      dashboard: '/api/dashboard',
-      gps: '/api/gps',
-      distance: '/api/distance',
-      tollProcessing: '/api/toll-processing',
-      notifications: '/api/notifications'
-    }
-  });
+  res.send('Server is running.............');
 });
+
 
 // Handle 404 errors
 app.use(notFoundHandler);
