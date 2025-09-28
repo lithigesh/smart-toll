@@ -39,13 +39,32 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Request logging middleware (optional - can be removed in production)
-// app.use((req, res, next) => {
-//   if (process.env.NODE_ENV === 'development') {
-//     console.log(`${req.method} ${req.url}`);
-//   }
-//   next();
-// });
+// Request logging and metrics middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  // Log requests in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📝 ${new Date().toISOString()} - ${req.method} ${req.url}`);
+  }
+  
+  // Add response time tracking
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    
+    // Log slow requests (>1000ms)
+    if (duration > 1000) {
+      console.log(`⚠️  Slow request: ${req.method} ${req.url} took ${duration}ms`);
+    }
+    
+    // Log errors
+    if (res.statusCode >= 400) {
+      console.log(`❌ ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+    }
+  });
+  
+  next();
+});
 
 // Parse JSON for most routes
 app.use('/api', express.json({ limit: '10mb' }));
@@ -62,13 +81,25 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
-      database: dbHealth
+      database: dbHealth,
+      services: {
+        geofencing: 'active',
+        tollProcessing: 'active',
+        distanceCalculation: 'active',
+        paymentGateway: 'active'
+      }
     });
   } catch (error) {
     res.status(500).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      error: error.message
+      error: error.message,
+      services: {
+        geofencing: 'unknown',
+        tollProcessing: 'unknown', 
+        distanceCalculation: 'unknown',
+        paymentGateway: 'unknown'
+      }
     });
   }
 });
@@ -88,9 +119,15 @@ app.use('/api/notifications', notificationsRoutes);
 app.get('/', (req, res) => {
   res.json({
     message: 'Smart Toll Backend API',
+    description: 'Automated toll collection system with GPS-based geofencing and real-time payment processing',
+    version: process.env.npm_package_version || '1.0.0',
+    documentation: {
+      readme: 'See README.md for comprehensive API documentation',
+      healthCheck: '/health',
+      apiPrefix: '/api'
+    },
     endpoints: {
-      health: '/health',
-      auth: '/api/auth',
+      authentication: '/api/auth',
       payment: '/api/payment',
       toll: '/api/toll',
       wallet: '/api/wallet',
@@ -99,6 +136,13 @@ app.get('/', (req, res) => {
       distance: '/api/distance',
       tollProcessing: '/api/toll-processing',
       notifications: '/api/notifications'
+    },
+    features: {
+      geofencing: 'Real-time zone detection and toll calculation',
+      automation: 'Seamless toll collection without stopping',
+      paymentGateway: 'Razorpay integration for wallet recharge',
+      gpsTracking: 'Accurate distance measurement with PostGIS',
+      notifications: 'Real-time updates and transaction alerts'
     }
   });
 });
@@ -117,15 +161,16 @@ const server = app.listen(PORT, async () => {
   try {
     const dbHealth = await healthCheck();
     if (dbHealth.status === 'healthy') {
-      console.log('✅ Database connected');
+      console.log('✅ Database connected successfully');
     } else {
-      console.log('❌ Database failed:', dbHealth.error);
+      console.log('❌ Database connection failed:', dbHealth.error);
     }
   } catch (error) {
     console.log('❌ Database error:', error.message);
   }
-  
-  console.log('🎯 Ready!\n');
+
+  console.log('\nThe Server is running.....\n');
+
 });
 
 module.exports = app;
