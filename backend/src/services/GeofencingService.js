@@ -83,13 +83,14 @@ class GeofencingService {
           // ZONE CHANGE: Vehicle moved to a different toll zone
           result.action = 'zone_change';
           
-          // Exit previous zone
+          // Exit previous zone (but don't create pending transactions for zone changes)
           result.journey_exit = await this.handleZoneExit({
             journey: activeJourney,
             vehicleId,
             userId,
             latitude,
-            longitude
+            longitude,
+            isZoneChange: true // Flag to indicate this is a zone change, not a true exit
           });
 
           // Enter new zone
@@ -192,9 +193,9 @@ class GeofencingService {
    * @param {number} params.longitude - Exit longitude
    * @returns {Promise<Object>} - Exit result
    */
-  static async handleZoneExit({ journey, vehicleId, userId, latitude, longitude }) {
+  static async handleZoneExit({ journey, vehicleId, userId, latitude, longitude, isZoneChange = false }) {
     try {
-      console.log(`🏁 Handling zone exit for journey ${journey.id}`);
+      console.log(`🏁 Handling zone exit for journey ${journey.id}${isZoneChange ? ' (zone change)' : ' (true exit)'}`);
 
       // Get vehicle information for rate calculation
       const vehicle = await Vehicle.findById(vehicleId);
@@ -211,47 +212,101 @@ class GeofencingService {
 
       console.log(`💰 Distance calculated: ${exitResult.distance_km} km, Fare: ₹${exitResult.fare_amount}`);
 
-      // Create pending toll transaction (not deducted yet!)
-      const pendingTransaction = await Transaction.createPendingToll({
-        user_id: userId,
-        vehicle_id: vehicleId,
-        journey_id: journey.id,
-        amount: exitResult.fare_amount,
-        description: `Distance toll: ${exitResult.distance_km} km on ${journey.toll_roads?.name || 'toll road'}`,
-        metadata: {
-          distance_km: exitResult.distance_km,
-          zone_name: journey.toll_roads?.toll_road_zones?.name,
-          road_name: journey.toll_roads?.name,
-          vehicle_type: vehicle.vehicle_type,
-          exit_coordinates: [longitude, latitude]
-        }
-      });
+      // Calculate remaining distance after last toll gate for pending transaction
+      // This should only create pending for distance that wasn't covered by toll gate payments
+      const tollGateDistance = 8.5; // Hardcoded for now - should get from toll gate data
+      const remainingDistance = Math.max(0, exitResult.distance_km - tollGateDistance);
+      
+      let pendingTransaction = null;
+      
+      // Only create pending transactions for true zone exits, not zone changes
+      if (remainingDistance > 0 && !isZoneChange) {
+        // Calculate fare only for remaining distance (not full distance!)
+        const baseRatePerKm = journey.toll_roads?.rate_per_km || 8;
+        const vehicleMultipliers = {
+          'motorcycle': 0.5, 'car': 1.0, 'suv': 1.2, 'van': 1.5,
+          'truck': 2.0, 'bus': 2.5, 'trailer': 3.0
+        };
+        const vehicleMultiplier = vehicleMultipliers[vehicle.vehicle_type?.toLowerCase()] || 1.0;
+        const minimumFare = 10;
+        
+        // Calculate fare for remaining distance only
+        const distanceCharge = remainingDistance * baseRatePerKm;
+        const vehicleAdjustedFare = distanceCharge * vehicleMultiplier;
+        const serviceFee = Math.max(remainingDistance * 0.1, 1.0);
+        const totalWithService = vehicleAdjustedFare + serviceFee;
+        const finalFare = Math.max(totalWithService, minimumFare);
+        const pendingAmount = Math.round(finalFare * 100) / 100;
+        
+        console.log(`� Creating pending transaction for remaining ${remainingDistance.toFixed(2)} km = ₹${pendingAmount}`);
+        
+        // Create pending toll transaction for remaining distance only
+        pendingTransaction = await Transaction.createPendingToll({
+          user_id: userId,
+          vehicle_id: vehicleId,
+          journey_id: journey.id,
+          amount: pendingAmount,
+          description: `Pending toll payment: ${remainingDistance.toFixed(2)}km after toll gate exit`,
+          metadata: {
+            distance_km: remainingDistance,
+            toll_gate_distance: tollGateDistance,
+            total_journey_distance: exitResult.distance_km,
+            zone_name: journey.toll_roads?.toll_road_zones?.name,
+            road_name: journey.toll_roads?.name,
+            vehicle_type: vehicle.vehicle_type,
+            exit_coordinates: [longitude, latitude]
+          }
+        });
+        
+        console.log(`✅ Pending transaction created: ₹${pendingAmount} for remaining ${remainingDistance.toFixed(2)} km`);
+      } else if (remainingDistance > 0 && isZoneChange) {
+        console.log(`🔄 Zone change detected - no pending transaction created (remaining ${remainingDistance.toFixed(2)} km)`);
+      } else {
+        console.log(`📋 No remaining distance after toll gate - no pending transaction created`);
+      }
 
-      // Create exit notification with pending toll info
+      // Create exit notification
+      const hasPendingTransaction = remainingDistance > 0 && !isZoneChange;
+      
       await Notifications.create({
         user_id: userId,
         type: 'exit',
-        title: 'Toll Zone Exit - Pending Payment',
-        message: `Exited toll zone. Distance: ${exitResult.distance_km} km. Pending toll: ₹${exitResult.fare_amount}. Payment will be processed when you pass a toll gate.`,
-        priority: 'medium',
+        title: isZoneChange 
+          ? 'Toll Zone Change' 
+          : hasPendingTransaction 
+            ? 'Toll Zone Exit - Pending Payment' 
+            : 'Toll Zone Exit - Completed',
+        message: isZoneChange
+          ? `Changed toll zones. Distance: ${exitResult.distance_km} km. Journey continues.`
+          : hasPendingTransaction 
+            ? `Exited toll zone. Distance: ${exitResult.distance_km} km. Pending toll: ₹${pendingTransaction.amount} for remaining ${remainingDistance.toFixed(2)} km after toll gate.`
+            : `Exited toll zone. Distance: ${exitResult.distance_km} km. No pending payment - all distance covered by toll gate.`,
+        priority: hasPendingTransaction ? 'medium' : 'low',
         data: {
           journey_id: journey.id,
-          transaction_id: pendingTransaction.id,
+          transaction_id: pendingTransaction?.id || null,
           distance_km: exitResult.distance_km,
-          fare_amount: exitResult.fare_amount,
+          remaining_distance: remainingDistance,
+          toll_gate_distance: tollGateDistance,
+          calculated_fare: exitResult.fare_amount,
+          pending_amount: pendingTransaction?.amount || 0,
           exit_time: exitResult.exit_time,
-          status: 'pending_payment'
+          status: hasPendingTransaction ? 'pending_payment' : isZoneChange ? 'zone_change' : 'completed',
+          payment_status: hasPendingTransaction ? 'awaiting_toll_gate' : 'no_payment_required',
+          is_zone_change: isZoneChange
         }
       });
 
       return {
         journey_id: journey.id,
-        transaction_id: pendingTransaction.id,
+        transaction_id: pendingTransaction?.id || null,
         distance_km: exitResult.distance_km,
+        remaining_distance: remainingDistance,
         fare_amount: exitResult.fare_amount,
+        pending_amount: pendingTransaction?.amount || 0,
         exit_time: exitResult.exit_time,
-        status: 'pending_payment',
-        payment_status: 'awaiting_toll_gate'
+        status: remainingDistance > 0 ? 'pending_payment' : 'completed',
+        payment_status: remainingDistance > 0 ? 'awaiting_toll_gate' : 'no_payment_required'
       };
 
     } catch (error) {
