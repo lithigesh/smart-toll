@@ -746,7 +746,7 @@ class SmartTollWorkflowSimulator {
         this.log(`✓ Total distance traveled: ${this.totalDistanceTraveled} km`, 'info');
         
         const journeyDuration = Math.round((this.exitTime - this.entryTime) / 60000); // minutes
-        this.log(`✓ Journey duration: ${journeyDuration} minutes`, 'info');
+        
         
         // Calculate pending amount for remaining distance after toll gate
         const lastTollGateKm = TOLL_ZONE_CONFIG.toll_gate.km_from_entry; // 8.5 km

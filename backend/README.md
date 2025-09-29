@@ -648,15 +648,6 @@ Response: {
 }
 ```
 
-#### `POST /api/toll/simulate`
-**Purpose**: Simulate toll processing (testing)
-```javascript
-Request: {
-  "vehicle_id": "uuid",
-  "scenario": "complete_journey",
-  "distance_km": 50.5
-}
-```
 
 #### `GET /api/toll/stats`
 **Purpose**: Get overall toll statistics
