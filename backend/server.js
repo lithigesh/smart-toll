@@ -14,6 +14,7 @@ const paymentRoutes = require('./src/routes/payment');
 const walletRoutes = require('./src/routes/wallet');
 const vehicleRoutes = require('./src/routes/vehicle');
 const esp32TollRoutes = require('./src/routes/esp32-toll');
+const adminRoutes = require('./src/routes/admin/adminRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,7 @@ const corsOptions = {
   origin: process.env.NODE_ENV === 'development' ? true : [
     'http://localhost:3000',
     'http://localhost:5173',
+    'http://localhost:3002',
     process.env.FRONTEND_URL
   ].filter(Boolean),
   credentials: true,
@@ -104,6 +106,7 @@ app.use('/api/payment', paymentRoutes);     // Razorpay wallet recharge
 app.use('/api/wallet', walletRoutes);       // Wallet balance management
 app.use('/api/vehicles', vehicleRoutes);    // Vehicle registration and management
 app.use('/api/esp32-toll', esp32TollRoutes); // ESP32 device toll processing
+app.use('/api/admin', adminRoutes);         // Admin dashboard routes
 
 // Root endpoint
 app.get('/', (req, res) => {
