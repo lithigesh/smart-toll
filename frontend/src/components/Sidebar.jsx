@@ -80,25 +80,25 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <div className={`
-        fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border z-50 transform transition-transform duration-200 ease-in-out
+        fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-50 transform transition-transform duration-300 ease-in-out shadow-lg
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0 md:fixed md:h-screen
+        md:translate-x-0 md:fixed md:h-screen md:shadow-none
       `}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-6 border-b border-sidebar-border">
-            <h1 className="text-xl font-bold text-sidebar-foreground">
+          <div className="p-6 border-b border-gray-200 bg-white">
+            <h1 className="text-xl font-bold text-gray-900">
               Smart Toll
             </h1>
             {user && (
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-gray-600 mt-1">
                 Welcome, {user.name}
               </p>
             )}
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-6 space-y-2 bg-white">
             {navigationItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.href;
@@ -109,10 +109,10 @@ export function Sidebar() {
                   to={item.href}
                   onClick={() => setIsOpen(false)}
                   className={`
-                    flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
+                    flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
                     ${isActive 
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      ? 'bg-blue-100 text-blue-700 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }
                   `}
                 >
@@ -124,15 +124,17 @@ export function Sidebar() {
 
             <Separator className="my-4" />
 
+            <Separator className="my-4" />
+
             {/* Quick Actions */}
             <div className="space-y-2">
-              <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Quick Actions
               </p>
               <Link
                 to="/vehicles/add"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                className="flex items-center px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all duration-200"
               >
                 <Plus className="mr-3 h-4 w-4" />
                 Add Vehicle
@@ -141,10 +143,10 @@ export function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-sidebar-border">
+          <div className="p-4 border-t border-gray-200 bg-white">
             <Button
               variant="outline"
-              className="w-full justify-start border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600"
+              className="w-full justify-start border-red-500 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all duration-200"
               onClick={handleLogout}
             >
               <LogOut className="mr-2 h-4 w-4" />

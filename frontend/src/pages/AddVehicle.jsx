@@ -5,7 +5,7 @@ import { API_ENDPOINTS } from '../config/config';
 import { Save, X, Car } from 'lucide-react';
 
 const AddVehicle = () => {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -84,64 +84,54 @@ const AddVehicle = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card shadow-sm border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/vehicles')}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
-              title="Go back"
-            >
-              <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Add New Vehicle</h1>
-              <p className="text-sm text-muted-foreground">Register a new vehicle to your account</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-muted-foreground">
-              Welcome, <span className="font-medium">{user?.name || user?.firstName}!</span>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center space-x-4">
+        <button
+          onClick={() => navigate('/vehicles')}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          title="Go back"
+        >
+          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Add Vehicle</h1>
+          <p className="text-gray-600 mt-1">Register a new vehicle to your account</p>
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
-      <main className="p-6">
-        <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto">
           {error && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6">
-              <div className="flex items-center space-x-2">
-                <svg className="w-5 h-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start space-x-2">
+                <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-destructive font-medium">{error}</p>
+                <p className="text-red-700 font-medium text-sm sm:text-base">{error}</p>
               </div>
             </div>
           )}
 
-          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-            <div className="px-6 py-4 bg-muted border-b border-border">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-4 sm:px-6 py-4 bg-gray-50 border-b border-gray-200">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <Car className="w-5 h-5 text-primary" />
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                  <Car className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-foreground">Vehicle Information</h2>
-                  <p className="text-sm text-muted-foreground">Fill in the details for your vehicle</p>
+                  <h2 className="text-lg font-bold text-gray-900">Vehicle Information</h2>
+                  <p className="text-sm text-gray-600 hidden sm:block">Fill in the details for your vehicle</p>
                 </div>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* License Plate - Required */}
               <div>
-                <label htmlFor="license_plate" className="block text-sm font-medium text-foreground mb-2">
+                <label htmlFor="license_plate" className="block text-sm font-medium text-gray-900 mb-2">
                   License Plate *
                 </label>
                 <input
@@ -151,14 +141,14 @@ const AddVehicle = () => {
                   value={formData.license_plate}
                   onChange={handleInputChange}
                   placeholder="e.g., TN01AB1234"
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   required
                 />
               </div>
 
               {/* Vehicle Type */}
               <div>
-                <label htmlFor="vehicle_type" className="block text-sm font-medium text-foreground mb-2">
+                <label htmlFor="vehicle_type" className="block text-sm font-medium text-gray-900 mb-2">
                   Vehicle Type
                 </label>
                 <select
@@ -166,7 +156,7 @@ const AddVehicle = () => {
                   name="vehicle_type"
                   value={formData.vehicle_type}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                 >
                   {vehicleTypes.map(type => (
                     <option key={type.value} value={type.value}>
@@ -177,9 +167,9 @@ const AddVehicle = () => {
               </div>
 
               {/* Make and Model */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="make" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="make" className="block text-sm font-medium text-gray-900 mb-2">
                     Make
                   </label>
                   <input
@@ -189,11 +179,11 @@ const AddVehicle = () => {
                     value={formData.make}
                     onChange={handleInputChange}
                     placeholder="e.g., Honda, Toyota, Ford"
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   />
                 </div>
                 <div>
-                  <label htmlFor="model" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="model" className="block text-sm font-medium text-gray-900 mb-2">
                     Model
                   </label>
                   <input
@@ -203,15 +193,15 @@ const AddVehicle = () => {
                     value={formData.model}
                     onChange={handleInputChange}
                     placeholder="e.g., Civic, Camry, Focus"
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   />
                 </div>
               </div>
 
               {/* Year and Color */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="year" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="year" className="block text-sm font-medium text-gray-900 mb-2">
                     Year
                   </label>
                   <select
@@ -219,7 +209,7 @@ const AddVehicle = () => {
                     name="year"
                     value={formData.year}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   >
                     <option value="">Select Year</option>
                     {years.map(year => (
@@ -228,7 +218,7 @@ const AddVehicle = () => {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="color" className="block text-sm font-medium text-foreground mb-2">
+                  <label htmlFor="color" className="block text-sm font-medium text-gray-900 mb-2">
                     Color
                   </label>
                   <input
@@ -238,17 +228,17 @@ const AddVehicle = () => {
                     value={formData.color}
                     onChange={handleInputChange}
                     placeholder="e.g., Red, Blue, Black"
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   />
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end space-x-4 pt-6 border-t border-border">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => navigate('/vehicles')}
-                  className="inline-flex items-center px-6 py-3 rounded-lg border border-border bg-background text-foreground hover:bg-accent transition-colors"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors order-2 sm:order-1"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
@@ -256,7 +246,7 @@ const AddVehicle = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {loading ? 'Adding...' : 'Add Vehicle'}
@@ -265,7 +255,7 @@ const AddVehicle = () => {
             </form>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
