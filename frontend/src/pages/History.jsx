@@ -26,12 +26,7 @@ const History = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('ESP32 Transaction history response:', data);
-        console.log('First transaction timestamps:', data.transactions?.[0] ? {
-          timestamp: data.transactions[0].timestamp,
-          device_timestamp: data.transactions[0].device_timestamp,
-          created_at: data.transactions[0].created_at
-        } : 'No transactions');
+
         setTransactions(data.transactions || []);
       } else {
         const errorText = await response.text();
@@ -299,11 +294,11 @@ const History = () => {
                         <span className="font-medium">Transaction ID:</span> {transaction.id}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        <span className="font-medium">Transaction Time:</span> {formatFullDate(transaction.timestamp || transaction.device_timestamp || transaction.created_at)}
+                        <span className="font-medium">Device Time:</span> {formatFullDate(transaction.timestamp || transaction.device_timestamp || transaction.created_at)}
                       </p>
-                      {transaction.created_at && transaction.timestamp && transaction.created_at !== transaction.timestamp && (
+                      {transaction.created_at && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          <span className="font-medium">Processed at:</span> {formatFullDate(transaction.created_at)}
+                          <span className="font-medium">Processed At:</span> {formatFullDate(transaction.created_at)}
                         </p>
                       )}
                     </div>
