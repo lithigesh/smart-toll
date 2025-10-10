@@ -241,7 +241,7 @@ const History = () => {
                         <div>
                           <h4 className="font-medium text-foreground">Toll Journey</h4>
                           <p className="text-sm text-muted-foreground">
-                            {formatDate(transaction.created_at)}
+                            {formatDate(transaction.timestamp || transaction.device_timestamp || transaction.created_at)}
                           </p>
                         </div>
                       </div>
@@ -294,7 +294,7 @@ const History = () => {
                         <span className="font-medium">Transaction ID:</span> {transaction.id}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        <span className="font-medium">Processed:</span> {formatFullDate(transaction.created_at)}
+                        <span className="font-medium">Processed:</span> {formatFullDate(transaction.timestamp || transaction.device_timestamp || transaction.created_at)}
                       </p>
                     </div>
                   </div>

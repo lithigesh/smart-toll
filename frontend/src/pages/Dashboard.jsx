@@ -123,9 +123,7 @@ const Dashboard = () => {
         <Card className="border hover:border-foreground transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 md:pb-4">
             <CardTitle className="text-xs md:text-sm font-medium">Wallet Balance</CardTitle>
-            <svg className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-            </svg>
+            <span className="text-lg md:text-xl font-bold text-muted-foreground">₹</span>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-xl md:text-2xl lg:text-3xl font-light mb-1 md:mb-2">
@@ -212,7 +210,7 @@ const Dashboard = () => {
                                   {transaction.distance_km}km journey
                                 </p>
                                 <p className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1">
-                                  {formatDate(transaction.timestamp)}
+                                  {formatDate(transaction.timestamp || transaction.device_timestamp || transaction.created_at)}
                                 </p>
                               </div>
                             </div>
@@ -272,9 +270,7 @@ const Dashboard = () => {
                       className="w-full justify-start h-10 md:h-12 text-sm md:text-base"
                       onClick={() => navigate('/recharge')}
                     >
-                      <svg className="mr-2 md:mr-3 h-4 w-4 md:h-5 md:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                        </svg>
+                      <span className="mr-2 md:mr-3 text-base md:text-lg font-bold">₹</span>
                       Recharge Wallet
                     </Button>
                   </CardContent>

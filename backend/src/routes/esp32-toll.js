@@ -132,7 +132,21 @@ router.post('/process', async (req, res) => {
     let parsedTimestamp;
     try {
       // Handle ESP32 format: "2025:10:10 21:52:01" -> "2025-10-10T21:52:01Z"
-      const normalizedTimestamp = timestamp.replace(/:/g, '-').replace(' ', 'T') + 'Z';
+      let normalizedTimestamp;
+      if (timestamp.includes(':') && timestamp.includes(' ')) {
+        // ESP32 format with colons in date and space separator
+        const parts = timestamp.split(' ');
+        if (parts.length === 2) {
+          const datePart = parts[0].replace(/:/g, '-'); // Only replace colons in date part
+          const timePart = parts[1]; // Keep time part as is
+          normalizedTimestamp = `${datePart}T${timePart}Z`;
+        } else {
+          normalizedTimestamp = timestamp;
+        }
+      } else {
+        normalizedTimestamp = timestamp;
+      }
+      
       parsedTimestamp = new Date(normalizedTimestamp);
       
       // Fallback: try parsing original timestamp directly
