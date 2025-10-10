@@ -111,7 +111,7 @@ export function Sidebar() {
                   className={`
                     flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
                     ${isActive 
-                      ? 'bg-blue-100 text-blue-700 shadow-sm' 
+                      ? 'bg-gray-900 text-white shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }
                   `}

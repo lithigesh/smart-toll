@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/config';
-import { Plus, Car, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Car, Edit, Trash2, RefreshCw, Wifi, Calendar, Palette, Wrench, Hash, CheckCircle } from 'lucide-react';
+import { Button } from '../components/ui/Button';
 
 const Vehicles = () => {
   const { token } = useAuth();
@@ -11,11 +12,7 @@ const Vehicles = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
-
-  const fetchVehicles = async () => {
+  const fetchVehicles = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -47,7 +44,11 @@ const Vehicles = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchVehicles();
+  }, [fetchVehicles]);
 
   const handleDeleteVehicle = async (vehicleId) => {
     if (!confirm('Are you sure you want to delete this vehicle?')) {
@@ -123,20 +124,24 @@ const Vehicles = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Vehicles</h1>
-          <p className="text-gray-600 mt-1">Manage your registered vehicles</p>
+      <div className="space-y-3 md:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-light tracking-tight">My Vehicles</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
+              Manage your registered vehicles
+            </p>
+          </div>
+          <Button
+            onClick={fetchVehicles}
+            disabled={loading}
+            variant="outline"
+            className="flex items-center gap-2 w-full sm:w-auto"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
-        <button
-          onClick={fetchVehicles}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
-          title="Refresh vehicles"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
       </div>
 
       {/* Main Content */}
@@ -164,7 +169,7 @@ const Vehicles = () => {
         <div className="mb-6 sm:mb-8">
           <button
             onClick={() => navigate('/vehicles/add')}
-            className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 font-medium shadow-sm"
+            className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-all duration-200 font-medium shadow-sm"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add New Vehicle
@@ -175,69 +180,110 @@ const Vehicles = () => {
           {vehicles.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {vehicles.map((vehicle) => (
-                <div key={vehicle.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-all duration-200">
+                <div key={vehicle.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-lg hover:border-gray-300 transition-all duration-200">
+                  {/* Header with vehicle type icon and actions */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-xl flex items-center justify-center text-xl sm:text-2xl flex-shrink-0">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center text-xl sm:text-2xl flex-shrink-0 shadow-sm">
                         {getVehicleTypeIcon(vehicle.vehicle_type)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-gray-900 text-base sm:text-lg truncate">
-                          {vehicle.license_plate}
+                        <h3 className="font-bold text-gray-900 text-lg sm:text-xl truncate">
+                          {vehicle.vehicle_number || vehicle.license_plate}
                         </h3>
-                        <p className="text-sm text-gray-600 capitalize">
-                          {vehicle.vehicle_type || 'Vehicle'}
-                        </p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Active
+                          </span>
+                          <span className="text-sm text-gray-600 capitalize">
+                            {vehicle.vehicle_type || 'Vehicle'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex space-x-1 sm:space-x-2 ml-2">
                       <button
                         onClick={() => navigate(`/vehicles/edit/${vehicle.id}`)}
-                        className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="p-2 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"
                         title="Edit vehicle"
                       >
-                        <Edit className="w-4 h-4 text-gray-500" />
+                        <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteVehicle(vehicle.id)}
-                        className="p-1.5 sm:p-2 rounded-lg hover:bg-red-50 transition-colors"
+                        className="p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"
                         title="Delete vehicle"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="space-y-2 sm:space-y-3">
-                    {vehicle.make && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs sm:text-sm text-gray-500">Make</span>
-                        <span className="text-xs sm:text-sm font-medium text-gray-900 truncate ml-2">{vehicle.make}</span>
+                  {/* Vehicle Details */}
+                  <div className="space-y-3">
+                    {/* Device ID */}
+                    {vehicle.device_id && (
+                      <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        <Wifi className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-gray-500 font-medium">Device ID</p>
+                          <p className="text-sm font-mono text-gray-900 truncate">{vehicle.device_id}</p>
+                        </div>
                       </div>
                     )}
-                    {vehicle.model && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs sm:text-sm text-gray-500">Model</span>
-                        <span className="text-xs sm:text-sm font-medium text-gray-900 truncate ml-2">{vehicle.model}</span>
+
+                    {/* Vehicle Info Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {vehicle.make && (
+                        <div className="flex items-center space-x-2">
+                          <Wrench className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Make</p>
+                            <p className="text-sm font-medium text-gray-900">{vehicle.make}</p>
+                          </div>
+                        </div>
+                      )}
+                      {vehicle.model && (
+                        <div className="flex items-center space-x-2">
+                          <Hash className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Model</p>
+                            <p className="text-sm font-medium text-gray-900">{vehicle.model}</p>
+                          </div>
+                        </div>
+                      )}
+                      {vehicle.year && (
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Year</p>
+                            <p className="text-sm font-medium text-gray-900">{vehicle.year}</p>
+                          </div>
+                        </div>
+                      )}
+                      {vehicle.color && (
+                        <div className="flex items-center space-x-2">
+                          <Palette className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Color</p>
+                            <p className="text-sm font-medium text-gray-900 capitalize">{vehicle.color}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer with registration date */}
+                    <div className="pt-3 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 text-gray-500">
+                          <Calendar className="w-4 h-4" />
+                          <span className="text-xs">Registered {formatDate(vehicle.created_at)}</span>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          ID: {vehicle.id}
+                        </div>
                       </div>
-                    )}
-                    {vehicle.year && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs sm:text-sm text-gray-500">Year</span>
-                        <span className="text-xs sm:text-sm font-medium text-gray-900">{vehicle.year}</span>
-                      </div>
-                    )}
-                    {vehicle.color && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs sm:text-sm text-gray-500">Color</span>
-                        <span className="text-xs sm:text-sm font-medium text-gray-900 capitalize truncate ml-2">{vehicle.color}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                      <span className="text-xs sm:text-sm text-gray-500">Added</span>
-                      <span className="text-xs sm:text-sm font-medium text-gray-900">
-                        {formatDate(vehicle.created_at)}
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -254,7 +300,7 @@ const Vehicles = () => {
               </p>
               <button
                 onClick={() => navigate('/vehicles/add')}
-                className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 font-medium"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-black transition-all duration-200 font-medium"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Add Your First Vehicle

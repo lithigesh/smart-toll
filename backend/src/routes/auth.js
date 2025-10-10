@@ -64,6 +64,12 @@ router.put('/profile', authMiddleware, [
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
   
+  body('phone')
+    .optional()
+    .trim()
+    .isMobilePhone('en-IN')
+    .withMessage('Please provide a valid phone number'),
+  
   handleValidationErrors
 ], updateProfile);
 

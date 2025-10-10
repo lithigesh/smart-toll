@@ -121,6 +121,7 @@ const getProfile = asyncErrorHandler(async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone,
       role: user.role,
       created_at: user.created_at
     },
@@ -137,7 +138,7 @@ const getProfile = asyncErrorHandler(async (req, res) => {
  */
 const updateProfile = asyncErrorHandler(async (req, res) => {
   const userId = req.user.id;
-  const { name, email } = req.body;
+  const { name, email, phone } = req.body;
 
   // Validate input
   const updates = {};
@@ -151,6 +152,7 @@ const updateProfile = asyncErrorHandler(async (req, res) => {
       throw new ConflictError('Email is already in use by another account');
     }
   }
+  if (phone !== undefined) updates.phone = phone.trim();
 
   if (Object.keys(updates).length === 0) {
     throw new ValidationError('No valid fields provided for update');
@@ -168,6 +170,7 @@ const updateProfile = asyncErrorHandler(async (req, res) => {
       id: updatedUser.id,
       name: updatedUser.name,
       email: updatedUser.email,
+      phone: updatedUser.phone,
       role: updatedUser.role,
       created_at: updatedUser.created_at
     }

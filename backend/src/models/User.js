@@ -117,6 +117,28 @@ class User {
     }
   }
 
+  static async update(userId, updateData) {
+    try {
+      // If password is being updated, hash it
+      if (updateData.password) {
+        updateData.password = await bcrypt.hash(updateData.password, 10);
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .update({ ...updateData, updated_at: new Date() })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      return new User(data);
+    } catch (error) {
+      throw new Error(`Error updating user: ${error.message}`);
+    }
+  }
+
   // Instance methods
   async validatePassword(password) {
     try {

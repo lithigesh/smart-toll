@@ -134,8 +134,8 @@ const Login = () => {
                 <span className="text-sm text-gray-600">
                   Don't have an account?{' '}
                   <Link 
-                    to="/signup" 
-                    className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                    to="/signup"
+                    className="font-medium text-gray-900 hover:text-black transition-colors"
                   >
                     Sign up here
                   </Link>

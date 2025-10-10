@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Card } from '../components/ui/Card';
-import { ArrowLeft, CreditCard, Wallet } from 'lucide-react';
+import { CreditCard, Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Recharge = () => {
@@ -313,17 +313,8 @@ const Recharge = () => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/dashboard')}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Wallet className="h-8 w-8 text-blue-600" />
+            <Wallet className="h-8 w-8 text-gray-900" />
             Recharge Wallet
           </h1>
           <p className="text-gray-600 mt-2">Add money to your Smart Toll wallet securely</p>

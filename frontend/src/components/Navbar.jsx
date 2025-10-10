@@ -10,8 +10,7 @@ import {
   Menu,
   X,
   Plus,
-  User,
-  Bell
+  User
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { useAuth } from '../hooks/useAuth';
@@ -79,7 +78,7 @@ export function Navbar() {
             {/* Logo and Brand */}
             <div className="flex items-center">
               <Link to="/dashboard" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">ST</span>
                 </div>
                 <span className="text-xl font-bold text-gray-900 hidden sm:block">
@@ -102,7 +101,7 @@ export function Navbar() {
                       className={`
                         flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
                         ${isActive 
-                          ? 'bg-blue-100 text-blue-700 shadow-sm' 
+                          ? 'bg-gray-900 text-white shadow-sm' 
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                         }
                       `}
@@ -120,16 +119,11 @@ export function Navbar() {
               {/* Quick Add Button */}
               <Link
                 to="/vehicles/add"
-                className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-black rounded-lg transition-colors duration-200"
               >
                 <Plus className="mr-1 h-4 w-4" />
                 Add Vehicle
               </Link>
-
-              {/* Notifications */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                <Bell className="h-5 w-5" />
-              </button>
 
               {/* Profile Dropdown */}
               <div className="relative">
@@ -202,7 +196,7 @@ export function Navbar() {
                     className={`
                       flex items-center px-3 py-2 rounded-lg text-base font-medium transition-colors
                       ${isActive 
-                        ? 'bg-blue-100 text-blue-700' 
+                        ? 'bg-gray-900 text-white' 
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                       }
                     `}
@@ -218,7 +212,7 @@ export function Navbar() {
                 <Link
                   to="/vehicles/add"
                   onClick={closeMobileMenu}
-                  className="flex items-center px-3 py-2 text-base font-medium text-blue-600 hover:bg-blue-50 rounded-lg"
+                  className="flex items-center px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-100 rounded-lg"
                 >
                   <Plus className="mr-3 h-5 w-5" />
                   Add Vehicle

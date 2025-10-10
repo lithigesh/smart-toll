@@ -123,7 +123,7 @@ const validateVehicle = [
   body('vehicle_type')
     .optional()
     .trim()
-    .isIn(['car', 'truck', 'bus', 'bike', 'other'])
+    .isIn(['Car', 'Truck', 'Bus', 'Bike', 'car', 'truck', 'bus', 'bike', 'other'])
     .withMessage('Invalid vehicle type'),
 
   body('make')

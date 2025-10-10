@@ -11,6 +11,8 @@ import Recharge from './pages/Recharge';
 import History from './pages/History';
 import Vehicles from './pages/Vehicles';
 import AddVehicle from './pages/AddVehicle';
+import EditVehicle from './pages/EditVehicle';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -68,6 +70,22 @@ function App() {
                 <ProtectedRoute>
                   <AppLayout>
                     <AddVehicle />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/vehicles/edit/:id" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <EditVehicle />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Profile />
                   </AppLayout>
                 </ProtectedRoute>
               } />

@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/config';
 import { Save, X, Car } from 'lucide-react';
 
-const AddVehicle = () => {
+const EditVehicle = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
+  const { id } = useParams();
   const [loading, setLoading] = useState(false);
+  const [fetchingVehicle, setFetchingVehicle] = useState(true);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     license_plate: '',
@@ -28,6 +30,47 @@ const AddVehicle = () => {
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 30 }, (_, i) => currentYear - i);
+
+  const fetchVehicleDetails = useCallback(async () => {
+    try {
+      setFetchingVehicle(true);
+      setError('');
+
+      const response = await fetch(`${API_ENDPOINTS.vehicles.details}/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const vehicle = data.vehicle;
+        
+        setFormData({
+          license_plate: vehicle.vehicle_number || vehicle.license_plate || '',
+          vehicle_type: vehicle.vehicle_type || 'Car',
+          device_id: vehicle.device_id || '',
+          make: vehicle.make || '',
+          model: vehicle.model || '',
+          year: vehicle.year ? vehicle.year.toString() : '',
+          color: vehicle.color || ''
+        });
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to fetch vehicle details');
+      }
+    } catch (err) {
+      console.error('Error fetching vehicle:', err);
+      setError('Failed to load vehicle details');
+    } finally {
+      setFetchingVehicle(false);
+    }
+  }, [id, token]);
+
+  useEffect(() => {
+    fetchVehicleDetails();
+  }, [fetchVehicleDetails]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -64,11 +107,10 @@ const AddVehicle = () => {
         color: formData.color || null
       };
 
-      console.log('Sending request to:', API_ENDPOINTS.vehicles.add);
-      console.log('Request data:', requestData);
+      console.log('Updating vehicle:', requestData);
 
-      const response = await fetch(API_ENDPOINTS.vehicles.add, {
-        method: 'POST',
+      const response = await fetch(`${API_ENDPOINTS.vehicles.update}/${id}`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -81,15 +123,26 @@ const AddVehicle = () => {
       } else {
         const errorData = await response.json();
         console.error('Server error:', errorData);
-        setError(errorData.message || errorData.error || 'Failed to add vehicle');
+        setError(errorData.message || errorData.error || 'Failed to update vehicle');
       }
     } catch (err) {
-      console.error('Error adding vehicle:', err);
+      console.error('Error updating vehicle:', err);
       setError(err.message || 'Network error - please check if the server is running');
     } finally {
       setLoading(false);
     }
   };
+
+  if (fetchingVehicle) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-border mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading vehicle details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -105,8 +158,8 @@ const AddVehicle = () => {
           </svg>
         </button>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Add Vehicle</h1>
-          <p className="text-gray-600 mt-1">Register a new vehicle to your account</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Edit Vehicle</h1>
+          <p className="text-gray-600 mt-1">Update your vehicle information</p>
         </div>
       </div>
 
@@ -131,7 +184,7 @@ const AddVehicle = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Vehicle Information</h2>
-                  <p className="text-sm text-gray-600 hidden sm:block">Fill in the details for your vehicle</p>
+                  <p className="text-sm text-gray-600 hidden sm:block">Update the details for your vehicle</p>
                 </div>
               </div>
             </div>
@@ -277,7 +330,7 @@ const AddVehicle = () => {
                   className="inline-flex items-center justify-center px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
                 >
                   <Save className="w-4 h-4 mr-2" />
-                  {loading ? 'Adding...' : 'Add Vehicle'}
+                  {loading ? 'Updating...' : 'Update Vehicle'}
                 </button>
               </div>
             </form>
@@ -288,4 +341,4 @@ const AddVehicle = () => {
   );
 };
 
-export default AddVehicle;
+export default EditVehicle;
