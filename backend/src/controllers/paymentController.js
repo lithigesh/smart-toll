@@ -28,7 +28,7 @@ const createPaymentOrder = asyncErrorHandler(async (req, res) => {
 
   // Generate unique receipt ID (max 40 chars for Razorpay)
   const timestamp = Date.now().toString(36); // Convert to base36 for shorter string
-  const userIdShort = userId.substring(0, 8); // First 8 chars of userId
+  const userIdShort = userId.toString().substring(0, 8); // First 8 chars of userId as string
   let receipt = `ord_${userIdShort}_${timestamp}`;
   
   // Validate receipt length
@@ -285,7 +285,7 @@ const getPaymentHistory = asyncErrorHandler(async (req, res) => {
 
   console.log(`Fetching payment history for user ${userId} with params:`, { limit, offset, status });
 
-  const recharges = await Recharge.findByUserId(userId, {
+  const recharges = await Recharge.getUserRecharges(userId, {
     limit: parseInt(limit),
     offset: parseInt(offset),
     status

@@ -1,887 +1,695 @@
-# Smart Toll System Backend
+# Smart Toll Backend API Documentation
 
-A comprehensive backend system for automated toll collection using GPS-based geofencing technology. The system provides seamless toll payment processing through digital wallets with real-time vehicle tracking and journey management.
+A comprehensive toll management system with ESP32 integration for automated toll collection.
 
-## 🎯 Project Overview
+## Table of Contents
 
-The Smart Toll System revolutionizes traditional toll collection by implementing an automated, GPS-based approach that eliminates the need for physical toll booths. Vehicles are tracked through geofenced toll zones, and payments are processed automatically based on distance traveled and vehicle type.
+- [Overview](#overview)
+- [Setup](#setup)
+- [Authentication](#authentication)
+- [API Endpoints](#api-endpoints)
+  - [Authentication Routes](#authentication-routes)
+  - [Vehicle Management Routes](#vehicle-management-routes)
+  - [Wallet Management Routes](#wallet-management-routes)
+  - [Payment Routes](#payment-routes)
+  - [ESP32 Toll Processing Routes](#esp32-toll-processing-routes)
+- [Response Format](#response-format)
+- [Error Handling](#error-handling)
 
-### Key Features
+## Overview
 
-- **Automated Toll Collection**: GPS-based zone entry/exit detection
-- **Digital Wallet Integration**: Seamless payment processing
-- **Multi-Vehicle Support**: Support for different vehicle types with varying toll rates
-- **Real-time Journey Tracking**: Complete GPS log and route monitoring
-- **Pending Balance Management**: Smart handling of incomplete journeys
-- **Transaction History**: Comprehensive audit trail for all payments
-- **Geofencing Technology**: Accurate zone boundary detection
-- **RESTful API**: Complete API for frontend integration
+The Smart Toll Backend provides RESTful APIs for:
+- User authentication and profile management
+- Vehicle registration and management
+- Wallet and payment processing with Razorpay integration
+- ESP32 device toll transaction processing
+- Real-time toll collection and balance management
 
-### Objectives
+## Setup
 
-1. **Eliminate Traffic Congestion**: Remove physical toll booth delays
-2. **Reduce Operational Costs**: Minimize manual toll collection infrastructure
-3. **Improve User Experience**: Seamless, contactless payment process
-4. **Increase Revenue Efficiency**: Accurate distance-based toll calculation
-5. **Environmental Benefits**: Reduced vehicle emissions from toll queue delays
-
-## 🔄 System Logic & Workflow
-
-### Complete Journey Flow
-
-```
-1. Authentication → 2. Vehicle Verification → 3. GPS Entry Detection → 
-4. Route Simulation → 5. Toll Encounter → 6. Post-Toll Route → 
-7. GPS Exit Detection → 8. Payment Verification
+1. Install dependencies:
+```bash
+npm install
 ```
 
-### Detailed Step-by-Step Process
+2. Set environment variables:
+```env
+PORT=3001
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+JWT_SECRET=your_jwt_secret
+JWT_REFRESH_SECRET=your_refresh_secret
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+```
 
-#### 1. **Authentication**
-- User logs in with email/password credentials
-- JWT token generated for session management
-- User profile and wallet information retrieved
+3. Start the server:
+```bash
+npm start
+# or for development
+npm run dev
+```
 
-#### 2. **Vehicle Verification**
-- System validates registered vehicles for the user
-- Vehicle type and specifications loaded (affects toll rates)
-- Hardware device mapping (if applicable)
+## Authentication
 
-#### 3. **GPS Entry Detection (Geofencing)**
-- Continuous GPS position monitoring
-- Real-time geofence boundary checking against toll zones
-- **Zone Entry Triggered**: New journey created in database
-- Entry timestamp and coordinates recorded
+Most API endpoints require Bearer token authentication. Include the token in the Authorization header:
 
-#### 4. **Route Simulation & GPS Logging**
-- Continuous GPS position updates within toll zones
-- Path distance calculation using GPS coordinates
-- Journey progress tracking and logging
+```
+Authorization: Bearer <your_jwt_token>
+```
 
-#### 5. **Toll Encounter (Payment Processing)**
-- **Distance Calculation**: Traveled distance to toll gate
-- **Rate Application**: `Amount = Distance × Rate_per_km × Vehicle_factor`
-- **Pending Balance Processing**: Previous pending amounts cleared
-- **Wallet Deduction**: Total amount deducted from user wallet
-- **Transaction Recording**: Payment transaction created
+## API Endpoints
 
-#### 6. **Post-Toll Route Continuation**
-- Journey continues after toll gate
-- Additional GPS logging for remaining route
-- Distance accumulation for exit processing
+### Authentication Routes
+**Base URL:** `/api/auth`
 
-#### 7. **GPS Exit Detection**
-- **Zone Exit Triggered**: Vehicle leaves toll zone boundaries
-- **Total Journey Calculation**: Complete route distance computed
-- **Pending Balance Creation**: 
-  - `Remaining_Distance = Total_Distance - Toll_Gate_Distance`
-  - `Pending_Amount = Remaining_Distance × Rate × Vehicle_factor`
-- **Journey Completion**: Exit timestamp and final calculations
+#### POST /api/auth/register
+Register a new user account.
 
-#### 8. **Payment Verification**
-- Final wallet balance confirmation
-- Transaction history validation
-- Pending transaction creation for next toll encounter
+**Request Body:**
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "password": "SecurePass123",
+  "confirmPassword": "SecurePass123"
+}
+```
 
-### Geofencing Logic
-
-```javascript
-// Zone Detection Algorithm
-if (currentZone && !activeJourney) {
-  // ENTRY: Vehicle entered toll zone
-  action = 'zone_entry'
-  createNewJourney()
-} else if (!currentZone && activeJourney) {
-  // EXIT: Vehicle left toll zone  
-  action = 'zone_exit'
-  completeJourney()
-  calculatePendingBalance()
-} else if (currentZone && activeJourney) {
-  if (currentZone.id === activeJourney.zone_id) {
-    // CONTINUING: Same zone
-    action = 'continuing_in_zone'
-  } else {
-    // ZONE CHANGE: Different toll zone
-    action = 'zone_change'
-    handleZoneTransition()
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "user": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com"
+  },
+  "tokens": {
+    "accessToken": "jwt_access_token",
+    "refreshToken": "jwt_refresh_token"
   }
 }
 ```
 
-## 🗄️ Database Design
+#### POST /api/auth/login
+Login with email and password.
 
-### Core Tables
-
-#### **users**
-```sql
-- id (UUID, Primary Key)
-- email (Unique)
-- password_hash
-- full_name
-- phone_number
-- created_at, updated_at
-```
-*Purpose: User authentication and profile management*
-
-#### **vehicles**
-```sql
-- id (UUID, Primary Key)
-- user_id (Foreign Key → users.id)
-- registration_number (Unique)
-- vehicle_type (car, truck, motorcycle, etc.)
-- make, model, year
-- device_id (Hardware mapping)
-- status (active, inactive)
-- created_at, updated_at
-```
-*Purpose: Vehicle registration and type classification*
-
-#### **wallets**
-```sql
-- id (UUID, Primary Key) 
-- user_id (Foreign Key → users.id)
-- balance (Decimal)
-- updated_at
-```
-*Purpose: Digital wallet balance management*
-
-#### **toll_roads**
-```sql
-- id (UUID, Primary Key)
-- name
-- state
-- rate_per_km (Base rate)
-- status (active, inactive)
-- created_at, updated_at
-```
-*Purpose: Toll road configuration and pricing*
-
-#### **toll_road_zones**
-```sql
-- id (UUID, Primary Key)
-- toll_road_id (Foreign Key → toll_roads.id)
-- name
-- zone_boundary (Polygon geometry)
-- entry_coordinates, exit_coordinates
-- created_at, updated_at
-```
-*Purpose: Geofenced zone definitions and boundaries*
-
-#### **journeys**
-```sql
-- id (UUID, Primary Key)
-- vehicle_id (Foreign Key → vehicles.id)
-- toll_road_id (Foreign Key → toll_roads.id)
-- zone_id (Foreign Key → toll_road_zones.id)
-- entry_point (Point geometry)
-- exit_point (Point geometry)
-- entry_time, exit_time
-- total_distance_km
-- calculated_fare
-- status (active, completed)
-- created_at, updated_at
-```
-*Purpose: Complete journey tracking and fare calculation*
-
-#### **transactions**
-```sql
-- id (UUID, Primary Key)
-- user_id (Foreign Key → users.id)
-- vehicle_id (Foreign Key → vehicles.id)
-- journey_id (Foreign Key → journeys.id)
-- amount (Decimal)
-- type (toll, wallet_recharge, pending_toll)
-- status (completed, pending, failed)
-- description
-- metadata (JSON)
-- created_at, updated_at
-```
-*Purpose: All payment transactions and pending balances*
-
-#### **gps_logs**
-```sql
-- id (UUID, Primary Key)
-- vehicle_id (Foreign Key → vehicles.id)
-- latitude, longitude
-- accuracy, speed, heading
-- logged_at
-- created_at
-```
-*Purpose: GPS position history and route tracking*
-
-#### **notifications**
-```sql
-- id (UUID, Primary Key)
-- user_id (Foreign Key → users.id)
-- type (entry, exit, payment, low_balance)
-- title, message
-- data (JSON)
-- priority (low, medium, high)
-- is_read
-- created_at
-```
-*Purpose: User notifications and alerts*
-
-### Database Relationships
-
-```
-users (1) ←→ (M) vehicles
-users (1) ←→ (1) wallets  
-users (1) ←→ (M) transactions
-users (1) ←→ (M) notifications
-
-vehicles (1) ←→ (M) journeys
-vehicles (1) ←→ (M) gps_logs
-vehicles (1) ←→ (M) transactions
-
-toll_roads (1) ←→ (M) toll_road_zones
-toll_roads (1) ←→ (M) journeys
-
-journeys (1) ←→ (M) transactions
-```
-
-## 🛣️ Backend Routes (API Endpoints)
-
-### Authentication Routes (`/api/auth`)
-
-#### `POST /api/auth/login`
-**Purpose**: User login and JWT token generation
-```javascript
-Request: {
-  "email": "user@example.com",
-  "password": "password123"
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "password": "SecurePass123"
 }
+```
 
-Response: {
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com"
+  },
+  "tokens": {
+    "accessToken": "jwt_access_token",
+    "refreshToken": "jwt_refresh_token"
+  }
+}
+```
+
+#### POST /api/auth/refresh
+Refresh access token using refresh token.
+
+**Request Body:**
+```json
+{
+  "refreshToken": "jwt_refresh_token"
+}
+```
+
+#### GET /api/auth/me
+Get current user profile. **Requires Authentication**
+
+**Response:**
+```json
+{
   "success": true,
   "user": {
-    "id": "uuid",
-    "email": "user@example.com", 
-    "full_name": "John Doe"
-  },
-  "token": "jwt_token_here"
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "created_at": "2025-10-10T10:00:00Z"
+  }
 }
 ```
 
-#### `POST /api/auth/register`
-**Purpose**: New user registration
-```javascript
-Request: {
-  "email": "user@example.com",
-  "password": "password123",
-  "full_name": "John Doe",
-  "phone_number": "+1234567890"
+#### PUT /api/auth/profile
+Update user profile. **Requires Authentication**
+
+**Request Body:**
+```json
+{
+  "name": "John Smith",
+  "email": "johnsmith@example.com"
 }
 ```
 
-#### `POST /api/auth/refresh`
-**Purpose**: Refresh JWT token
-```javascript
-Request: {
-  "refreshToken": "refresh_token_here"
+#### PUT /api/auth/password
+Change user password. **Requires Authentication**
+
+**Request Body:**
+```json
+{
+  "currentPassword": "OldPass123",
+  "newPassword": "NewPass123",
+  "confirmPassword": "NewPass123"
 }
 ```
 
-#### `POST /api/auth/forgot-password`
-**Purpose**: Send password reset email
-```javascript
-Request: {
-  "email": "user@example.com"
+#### POST /api/auth/logout
+Logout user. **Requires Authentication**
+
+#### POST /api/auth/forgot-password
+Request password reset.
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
 }
 ```
 
-#### `POST /api/auth/verify-email`
-**Purpose**: Verify email with token
-```javascript
-Request: {
+#### POST /api/auth/verify-email
+Verify email with token.
+
+**Request Body:**
+```json
+{
   "token": "verification_token"
 }
 ```
 
-#### `GET /api/auth/me`
-**Purpose**: Get current user profile (requires authentication)
+---
 
-#### `PUT /api/auth/profile`
-**Purpose**: Update user profile
-```javascript
-Request: {
-  "name": "Updated Name",
-  "email": "new@example.com"
-}
-```
+### Vehicle Management Routes
+**Base URL:** `/api/vehicles`
 
-#### `PUT /api/auth/password`
-**Purpose**: Change user password
-```javascript
-Request: {
-  "currentPassword": "current_password",
-  "newPassword": "new_password",
-  "confirmPassword": "new_password"
-}
-```
+#### GET /api/vehicles/user
+Get all vehicles for the authenticated user. **Requires Authentication**
 
-#### `POST /api/auth/logout`
-**Purpose**: Logout user and invalidate token
-
-### Vehicle Routes (`/api/vehicles`)
-
-#### `GET /api/vehicles`
-**Purpose**: Get all vehicles for authenticated user
-```javascript
-Response: {
+**Response:**
+```json
+{
   "success": true,
   "vehicles": [
     {
-      "id": "uuid",
-      "registration_number": "ABC123",
+      "id": 1,
+      "vehicle_number": "TN01AB1234",
       "vehicle_type": "car",
-      "make": "Toyota",
-      "model": "Camry",
-      "status": "active"
+      "model": "Honda Civic",
+      "device_id": "QR-E02RMN8R6Z",
+      "is_active": true,
+      "created_at": "2025-10-10T10:00:00Z"
     }
   ]
 }
 ```
 
-#### `POST /api/vehicles`
-**Purpose**: Register new vehicle
-```javascript
-Request: {
-  "registration_number": "ABC123",
+#### GET /api/vehicles/:id
+Get vehicle details by ID. **Requires Authentication**
+
+**Response:**
+```json
+{
+  "success": true,
+  "vehicle": {
+    "id": 1,
+    "vehicle_number": "TN01AB1234",
+    "vehicle_type": "car",
+    "model": "Honda Civic",
+    "device_id": "QR-E02RMN8R6Z",
+    "user_id": 1,
+    "is_active": true,
+    "created_at": "2025-10-10T10:00:00Z"
+  }
+}
+```
+
+#### POST /api/vehicles
+Add a new vehicle. **Requires Authentication**
+
+**Request Body:**
+```json
+{
+  "license_plate": "TN01AB1234",
   "vehicle_type": "car",
-  "make": "Toyota", 
-  "model": "Camry",
-  "year": 2022
+  "make": "Honda",
+  "model": "Civic",
+  "year": 2020,
+  "color": "Blue",
+  "device_id": "QR-E02RMN8R6Z"
 }
 ```
 
-### GPS Routes (`/api/gps`)
-
-#### `POST /api/gps/log`
-**Purpose**: Log GPS position and process geofencing
-```javascript
-Request: {
-  "vehicle_id": "uuid",
-  "latitude": 10.9750,
-  "longitude": 76.9000,
-  "speed": 60,
-  "heading": 90,
-  "accuracy": 5
-}
-
-Response: {
+**Response:**
+```json
+{
   "success": true,
-  "geofencing": {
-    "action": "zone_entry|zone_exit|continuing_in_zone|zone_change",
-    "journey_entry": {...},  // if zone entry
-    "journey_exit": {...}    // if zone exit
+  "message": "Vehicle added successfully",
+  "vehicle": {
+    "id": 1,
+    "vehicle_number": "TN01AB1234",
+    "vehicle_type": "car",
+    "model": "Honda Civic",
+    "device_id": "QR-E02RMN8R6Z",
+    "user_id": 1,
+    "is_active": true,
+    "created_at": "2025-10-10T10:00:00Z"
   }
 }
 ```
 
-#### `GET /api/gps/history/:vehicle_id`
-**Purpose**: Get GPS history for a vehicle
-```javascript
-Query Parameters:
-- start_date: Start date for history
-- end_date: End date for history
-- limit: Number of records
+#### PUT /api/vehicles/:id
+Update vehicle details. **Requires Authentication**
 
-Response: {
+**Request Body:**
+```json
+{
+  "license_plate": "TN01AB5678",
+  "vehicle_type": "car",
+  "make": "Honda",
+  "model": "City",
+  "device_id": "QR-NEW123456"
+}
+```
+
+#### DELETE /api/vehicles/:id
+Delete (deactivate) a vehicle. **Requires Authentication**
+
+**Response:**
+```json
+{
   "success": true,
-  "gps_logs": [
-    {
-      "latitude": 10.9750,
-      "longitude": 76.9000,
-      "speed": 60,
-      "logged_at": "2025-09-28T10:30:00Z"
-    }
-  ]
+  "message": "Vehicle deleted successfully"
 }
 ```
 
-#### `GET /api/gps/journey/:journey_id/path`
-**Purpose**: Get complete GPS path for a journey
-```javascript
-Response: {
+---
+
+### Wallet Management Routes
+**Base URL:** `/api/wallet`
+
+#### GET /api/wallet/balance
+Get wallet balance for authenticated user. **Requires Authentication**
+
+**Response:**
+```json
+{
   "success": true,
-  "path": {
-    "journey_id": "uuid",
-    "coordinates": [...],
-    "total_distance": 85.5,
-    "duration_minutes": 45
-  }
+  "balance": 1500.00,
+  "currency": "INR",
+  "last_updated": "2025-10-10T10:00:00Z"
 }
 ```
 
-#### `GET /api/gps/current-location/:vehicle_id`
-**Purpose**: Get current location of a vehicle
-```javascript
-Response: {
-  "success": true,
-  "location": {
-    "latitude": 10.9750,
-    "longitude": 76.9000,
-    "last_updated": "2025-09-28T10:30:00Z",
-    "is_moving": true
-  }
-}
-```
+#### GET /api/wallet/transactions
+Get transaction history. **Requires Authentication**
 
-#### `GET /api/gps/stats/:vehicle_id`
-**Purpose**: Get GPS tracking statistics for a vehicle
-```javascript
-Query Parameters:
-- days: Number of days for stats (1-90)
+**Query Parameters:**
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20)
+- `type` (optional): Transaction type (toll_payment, wallet_recharge)
+- `start_date` (optional): Start date filter
+- `end_date` (optional): End date filter
 
-Response: {
-  "success": true,
-  "stats": {
-    "total_distance": 1250.5,
-    "total_trips": 25,
-    "avg_speed": 45.2,
-    "tracking_accuracy": 98.5
-  }
-}
-```
-
-### Wallet Routes (`/api/wallet`)
-
-#### `GET /api/wallet/balance`
-**Purpose**: Get current wallet balance
-```javascript
-Response: {
-  "success": true,
-  "balance": 1500.50,
-  "last_updated": "2025-09-28T10:30:00Z"
-}
-```
-
-#### `POST /api/wallet/recharge`
-**Purpose**: Add money to wallet
-```javascript
-Request: {
-  "amount": 500.00,
-  "payment_method": "credit_card",
-  "payment_reference": "txn_123456"
-}
-```
-
-#### `POST /api/wallet/deduct`
-**Purpose**: Deduct money from wallet (internal use)
-```javascript
-Request: {
-  "amount": 75.50,
-  "description": "Toll payment",
-  "journey_id": "uuid"
-}
-```
-
-#### `GET /api/wallet/transactions`
-**Purpose**: Get wallet transaction history
-```javascript
-Query Parameters:
-- page: Page number
-- limit: Records per page
-- type: Transaction type filter
-
-Response: {
-  "success": true,
-  "transactions": [...],
-  "pagination": {
-    "current_page": 1,
-    "total_pages": 5,
-    "total_records": 125
-  }
-}
-```
-
-#### `GET /api/wallet/daily-summary`
-**Purpose**: Get daily wallet activity summary
-```javascript
-Query Parameters:
-- date: Specific date (YYYY-MM-DD)
-
-Response: {
-  "success": true,
-  "summary": {
-    "date": "2025-09-28",
-    "opening_balance": 1000.00,
-    "total_credits": 500.00,
-    "total_debits": 200.00,
-    "closing_balance": 1300.00
-  }
-}
-```
-
-#### `GET /api/wallet/stats`
-**Purpose**: Get wallet statistics
-```javascript
-Query Parameters:
-- period: 'week', 'month', 'year'
-
-Response: {
-  "success": true,
-  "stats": {
-    "avg_daily_spend": 75.50,
-    "total_recharges": 5000.00,
-    "total_toll_payments": 3250.00,
-    "savings_this_month": 500.00
-  }
-}
-```
-
-#### `GET /api/wallet/low-balance-alert`
-**Purpose**: Check if wallet balance is low
-```javascript
-Query Parameters:
-- threshold: Custom threshold amount (default: 100)
-
-Response: {
-  "success": true,
-  "low_balance": true,
-  "current_balance": 45.50,
-  "threshold": 100.00,
-  "suggested_recharge": 500.00
-}
-```
-
-### Transaction Routes (`/api/transactions`)
-
-#### `GET /api/transactions/history`
-**Purpose**: Get transaction history
-```javascript
-Query Parameters:
-- limit: number of records
-- offset: pagination offset
-- type: filter by transaction type
-- status: filter by status
-
-Response: {
+**Response:**
+```json
+{
   "success": true,
   "transactions": [
     {
-      "id": "uuid",
-      "amount": 75.50,
-      "type": "toll",
-      "status": "completed",
-      "description": "Toll payment",
-      "created_at": "2025-09-28T10:30:00Z"
-    }
-  ]
-}
-```
-
-#### `GET /api/transactions/pending`
-**Purpose**: Get pending transactions
-```javascript
-Response: {
-  "success": true,
-  "pending_transactions": [...],
-  "total_pending_amount": 150.75
-}
-```
-
-### Toll Routes (`/api/toll`)
-
-#### `POST /api/toll/payment`
-**Purpose**: Process toll payment at toll gate
-```javascript
-Request: {
-  "vehicle_id": "uuid",
-  "journey_id": "uuid", 
-  "distance_km": 8.5,
-  "toll_gate_location": "NH544 Express Toll Plaza"
-}
-```
-
-#### `GET /api/toll/rates`
-**Purpose**: Get toll rates for different vehicle types
-
-#### `POST /api/toll/process-pending`
-**Purpose**: Process pending toll payments
-```javascript
-Request: {
-  "user_id": "uuid",
-  "vehicle_id": "uuid",
-  "pending_transaction_ids": ["uuid1", "uuid2"]
-}
-```
-
-
-
-#### `GET /api/toll/pending/:userId`
-**Purpose**: Get pending toll transactions for a user
-```javascript
-Response: {
-  "success": true,
-  "pending_transactions": [
-    {
-      "id": "uuid",
-      "amount": 150.75,
-      "distance_km": 25.5,
-      "journey_id": "uuid",
-      "created_at": "2025-09-28T10:30:00Z"
+      "id": 1,
+      "type": "toll_payment",
+      "amount": -25.00,
+      "description": "Toll payment for TN01AB1234",
+      "balance_after": 1475.00,
+      "created_at": "2025-10-10T10:30:00Z"
     }
   ],
-  "total_pending": 150.75
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "pages": 1
+  }
 }
 ```
 
+#### GET /api/wallet/stats
+Get wallet statistics. **Requires Authentication**
 
-#### `GET /api/toll/stats`
-**Purpose**: Get overall toll statistics
-```javascript
-Response: {
+**Query Parameters:**
+- `days` (optional): Number of days for stats (default: 30, max: 365)
+
+**Response:**
+```json
+{
   "success": true,
   "stats": {
-    "total_collections": 125000.50,
-    "total_transactions": 5000,
-    "avg_transaction_amount": 25.00,
-    "peak_hours": "08:00-10:00"
+    "total_spent": 250.00,
+    "total_recharged": 2000.00,
+    "transaction_count": 15,
+    "average_transaction": 16.67,
+    "period_days": 30
   }
 }
 ```
 
-#### `GET /api/toll/stats/:userId`
-**Purpose**: Get toll statistics for specific user
-```javascript
-Query Parameters:
-- period: 'week', 'month', 'year'
+#### GET /api/wallet/low-balance-alert
+Check low balance alert status. **Requires Authentication**
 
-Response: {
+**Query Parameters:**
+- `threshold` (optional): Balance threshold (default: 100)
+
+**Response:**
+```json
+{
   "success": true,
-  "user_stats": {
-    "total_paid": 2500.50,
-    "total_journeys": 100,
-    "avg_journey_cost": 25.00,
-    "most_used_route": "NH544"
+  "alert": {
+    "is_low_balance": false,
+    "current_balance": 1500.00,
+    "threshold": 100.00,
+    "recommendation": "Your balance is sufficient for toll operations"
   }
 }
 ```
 
-#### `GET /api/toll/active-journeys`
-**Purpose**: Get currently active journeys
-```javascript
-Response: {
+---
+
+### Payment Routes
+**Base URL:** `/api/payment`
+
+#### POST /api/payment/create-order
+Create Razorpay payment order for wallet recharge. **Requires Authentication**
+
+**Request Body:**
+```json
+{
+  "amount": 500,
+  "currency": "INR"
+}
+```
+
+**Response:**
+```json
+{
   "success": true,
-  "active_journeys": [
+  "order": {
+    "id": "order_razorpay_id",
+    "amount": 50000,
+    "currency": "INR",
+    "receipt": "receipt_unique_id"
+  },
+  "razorpay_key": "rzp_test_key"
+}
+```
+
+#### POST /api/payment/verify
+Verify payment and update wallet balance. **Requires Authentication**
+
+**Request Body:**
+```json
+{
+  "razorpay_order_id": "order_razorpay_id",
+  "razorpay_payment_id": "pay_razorpay_id",
+  "razorpay_signature": "signature_hash"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Payment verified and wallet updated",
+  "data": {
+    "payment_id": "pay_razorpay_id",
+    "amount": 500.00,
+    "new_balance": 2000.00,
+    "transaction_id": 123
+  }
+}
+```
+
+#### GET /api/payment/history
+Get payment history. **Requires Authentication**
+
+**Query Parameters:**
+- `page` (optional): Page number
+- `limit` (optional): Items per page
+- `status` (optional): Payment status filter
+
+**Response:**
+```json
+{
+  "success": true,
+  "recharges": [
     {
-      "journey_id": "uuid",
-      "vehicle_id": "uuid",
-      "entry_time": "2025-09-28T10:30:00Z",
-      "current_zone": "NH544 Zone 1"
+      "id": 1,
+      "order_id": "order_razorpay_id",
+      "payment_id": "pay_razorpay_id",
+      "amount": 500.00,
+      "status": "paid",
+      "created_at": "2025-10-10T10:00:00Z"
     }
   ]
 }
 ```
 
-#### `POST /api/toll/cancel-journey`
-**Purpose**: Cancel an active journey
-```javascript
-Request: {
-  "journey_id": "uuid",
-  "reason": "Vehicle breakdown"
-}
-```
+#### GET /api/payment/:paymentId
+Get payment details by ID. **Requires Authentication**
 
-#### `POST /api/toll/cancel-pending`
-**Purpose**: Cancel pending toll transactions
-```javascript
-Request: {
-  "transaction_ids": ["uuid1", "uuid2"],
-  "reason": "System error"
-}
-```
-
-### Distance Routes (`/api/distance`)
-
-#### `POST /api/distance/calculate`
-**Purpose**: Calculate distance between two points
-```javascript
-Request: {
-  "start_lat": 10.9750,
-  "start_lon": 76.9000,
-  "end_lat": 11.0500,
-  "end_lon": 77.0500,
-  "method": "haversine" // or "path"
-}
-
-Response: {
+**Response:**
+```json
+{
   "success": true,
-  "distance": {
-    "kilometers": 25.5,
-    "method": "haversine",
-    "accuracy": "high"
+  "payment": {
+    "id": "pay_razorpay_id",
+    "order_id": "order_razorpay_id",
+    "amount": 500.00,
+    "status": "paid",
+    "method": "card",
+    "created_at": "2025-10-10T10:00:00Z"
   }
 }
 ```
 
-#### `GET /api/distance/vehicle/:vehicle_id`
-**Purpose**: Get total distance traveled by vehicle
-```javascript
-Query Parameters:
-- start_date: Start date for calculation
-- end_date: End date for calculation
+#### POST /api/payment/webhook
+Handle Razorpay webhooks. **Public Endpoint**
 
-Response: {
+**Note:** This endpoint processes webhook events from Razorpay for payment status updates.
+
+---
+
+### ESP32 Toll Processing Routes
+**Base URL:** `/api/esp32-toll`
+
+#### GET /api/esp32-toll/transactions
+Get ESP32 toll transactions for authenticated user. **Requires Authentication**
+
+**Query Parameters:**
+- `limit` (optional): Number of transactions (default: 50)
+- `offset` (optional): Offset for pagination (default: 0)
+
+**Response:**
+```json
+{
   "success": true,
-  "vehicle_distance": {
-    "total_km": 1250.5,
-    "period": "last_30_days",
-    "journeys_count": 45
+  "transactions": [
+    {
+      "id": 1,
+      "device_id": "ESP32_DEVICE_001",
+      "start_lat": 11.0168,
+      "start_lon": 76.9558,
+      "distance_km": 15.5,
+      "toll_amount": 25.00,
+      "status": "completed",
+      "vehicle_number": "TN01AB1234",
+      "vehicle_type": "car",
+      "created_at": "2025-10-10T10:30:00Z",
+      "timestamp": "2025-10-10T10:30:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+#### POST /api/esp32-toll/process
+Process toll transaction from ESP32 device. **Public Endpoint**
+
+**Request Body:**
+```json
+{
+  "device_id": "ESP32_DEVICE_001",
+  "start_lat": 11.0168,
+  "start_lon": 76.9558,
+  "total_distance_km": 15.5,
+  "timestamp": "2025-10-10T10:30:00Z"
+}
+```
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Toll transaction processed successfully",
+  "data": {
+    "transaction_id": 1,
+    "toll_amount": 25.00,
+    "new_wallet_balance": 1475.00,
+    "vehicle_id": 1,
+    "user_id": 1
   }
 }
 ```
 
-#### `POST /api/distance/fare`
-**Purpose**: Calculate fare based on distance and vehicle type
-```javascript
-Request: {
-  "distance_km": 25.5,
-  "vehicle_type": "car",
-  "toll_road_id": "uuid"
-}
-
-Response: {
-  "success": true,
-  "fare": {
-    "base_amount": 204.00,
-    "vehicle_multiplier": 1.0,
-    "service_fee": 2.55,
-    "total_amount": 206.55
+**Failure Response (Insufficient Balance):**
+```json
+{
+  "success": false,
+  "message": "Insufficient wallet balance for toll payment",
+  "data": {
+    "transaction_id": 1,
+    "toll_amount": 25.00,
+    "current_wallet_balance": 10.00,
+    "vehicle_id": 1,
+    "user_id": 1
   }
 }
 ```
 
-#### `POST /api/distance/fleet-stats`
-**Purpose**: Get distance statistics for multiple vehicles
-```javascript
-Request: {
-  "vehicle_ids": ["uuid1", "uuid2"],
-  "period": "month"
-}
-```
+---
 
-#### `POST /api/distance/eta`
-**Purpose**: Calculate estimated time of arrival
-```javascript
-Request: {
-  "start_lat": 10.9750,
-  "start_lon": 76.9000,
-  "end_lat": 11.0500,
-  "end_lon": 77.0500,
-  "avg_speed": 60
-}
-```
+## Response Format
 
-#### `GET /api/distance/validate/:latitude/:longitude`
-**Purpose**: Validate GPS coordinates
-```javascript
-Response: {
+All API responses follow a consistent format:
+
+### Success Response
+```json
+{
   "success": true,
-  "valid": true,
-  "location_info": {
-    "country": "India",
-    "state": "Tamil Nadu",
-    "within_service_area": true
+  "message": "Optional success message",
+  "data": {
+    // Response data
   }
 }
 ```
 
-### Toll Processing Routes (`/api/toll-processing`)
-
-#### `POST /api/toll-processing/process`
-**Purpose**: Process toll payment for a journey
-```javascript
-Request: {
-  "journey_id": "uuid",
-  "vehicle_id": "uuid",
-  "processing_type": "automatic"
+### Error Response
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "error": "Specific error details",
+  "timestamp": "2025-10-10T10:00:00Z"
 }
 ```
 
-#### `POST /api/toll-processing/retry-pending`
-**Purpose**: Retry failed pending toll payments
-```javascript
-Request: {
-  "user_id": "uuid",
-  "max_retry_count": 3
+## Error Handling
+
+### HTTP Status Codes
+- `200` - Success
+- `201` - Created
+- `400` - Bad Request
+- `401` - Unauthorized
+- `403` - Forbidden
+- `404` - Not Found
+- `409` - Conflict
+- `422` - Validation Error
+- `500` - Internal Server Error
+
+### Common Error Types
+- **Validation Errors**: Invalid input data
+- **Authentication Errors**: Missing or invalid tokens
+- **Authorization Errors**: Insufficient permissions
+- **Resource Not Found**: Requested resource doesn't exist
+- **Conflict Errors**: Duplicate resources
+- **Database Errors**: Internal database issues
+
+### Example Error Response
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Please provide a valid email address"
+    }
+  ],
+  "timestamp": "2025-10-10T10:00:00Z"
 }
 ```
 
-#### `GET /api/toll-processing/pending`
-**Purpose**: Get all pending toll processing tasks
+---
 
-#### `GET /api/toll-processing/pending/:user_id`
-**Purpose**: Get pending toll processing for specific user
+## Health Check Endpoint
 
-#### `GET /api/toll-processing/stats`
-**Purpose**: Get toll processing statistics
-```javascript
-Response: {
-  "success": true,
-  "processing_stats": {
-    "total_processed": 1000,
-    "success_rate": 98.5,
-    "avg_processing_time": 2.5,
-    "pending_count": 15
+#### GET /health
+Check API health status. **Public Endpoint**
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-10-10T12:00:00Z",
+  "uptime": 3600,
+  "database": {
+    "status": "connected",
+    "response_time": "2ms"
+  },
+  "services": {
+    "esp32TollProcessing": "active",
+    "paymentGateway": "active",
+    "walletManagement": "active"
   }
 }
 ```
 
-#### `POST /api/toll-processing/force-process`
-**Purpose**: Force process stuck toll payments (admin only)
-```javascript
-Request: {
-  "journey_ids": ["uuid1", "uuid2"],
-  "force_reason": "System recovery"
-}
+---
+
+## Rate Limiting
+
+- Authentication endpoints: 5 requests per minute per IP
+- Payment endpoints: 10 requests per minute per user
+- ESP32 toll processing: 100 requests per minute per device
+- Other endpoints: 100 requests per minute per user
+
+---
+
+## Development
+
+### Running Tests
+```bash
+npm test
 ```
 
-#### `POST /api/toll-processing/calculate-fare`
-**Purpose**: Calculate fare without processing payment
-```javascript
-Request: {
-  "journey_id": "uuid",
-  "distance_km": 45.5,
-  "vehicle_type": "car"
-}
+### Linting
+```bash
+npm run lint
 ```
 
-#### `GET /api/toll-processing/user-transactions`
-**Purpose**: Get toll processing transactions for user
-```javascript
-Query Parameters:
-- status: Processing status filter
-- limit: Number of records
-- offset: Pagination offset
+### Database Migrations
+```bash
+npm run migrate
 ```
 
-## 💰 Business Logic
+---
 
-### Toll Calculation Formula
+## Support
 
-```javascript
-// Base Calculation
-baseAmount = distance_km × toll_road.rate_per_km
-
-// Vehicle Type Multiplier
-vehicleMultipliers = {
-  'motorcycle': 0.5,
-  'car': 1.0,
-  'suv': 1.2, 
-  'van': 1.5,
-  'truck': 2.0,
-  'bus': 2.5,
-  'trailer': 3.0
-}
-
-vehicleAdjustedAmount = baseAmount × vehicleMultipliers[vehicle_type]
-
-// Service Fee (minimum ₹1)
-serviceFee = Math.max(distance_km × 0.1, 1.0)
-
-// Final Amount (minimum ₹10)
-finalAmount = Math.max(vehicleAdjustedAmount + serviceFee, 10.0)
-```
+For technical support or questions about the API, please contact the development team or refer to the project documentation.

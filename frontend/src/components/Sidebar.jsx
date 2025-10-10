@@ -82,7 +82,7 @@ export function Sidebar() {
       <div className={`
         fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border z-50 transform transition-transform duration-200 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0 md:static md:h-screen
+        md:translate-x-0 md:fixed md:h-screen
       `}>
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -144,7 +144,7 @@ export function Sidebar() {
           <div className="p-4 border-t border-sidebar-border">
             <Button
               variant="outline"
-              className="w-full justify-start"
+              className="w-full justify-start border-red-600 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600"
               onClick={handleLogout}
             >
               <LogOut className="mr-2 h-4 w-4" />

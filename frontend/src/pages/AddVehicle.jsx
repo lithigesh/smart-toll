@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/config';
-import ThemeSelector from '../components/ThemeSelector';
 import { Save, X, Car } from 'lucide-react';
 
 const AddVehicle = () => {
@@ -105,7 +104,6 @@ const AddVehicle = () => {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <ThemeSelector />
             <div className="text-sm text-muted-foreground">
               Welcome, <span className="font-medium">{user?.name || user?.firstName}!</span>
             </div>

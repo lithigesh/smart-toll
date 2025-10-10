@@ -6,7 +6,6 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Loader2, Mail, Lock, LogIn } from 'lucide-react';
-import ThemeToggle from '../components/ThemeToggle';
 
 const Login = () => {
   const [email, setEmail] = useState('test@smarttoll.com');
@@ -45,10 +44,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
-      {/* Theme Toggle - positioned absolutely */}
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
+
       
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">

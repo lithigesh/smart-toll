@@ -120,47 +120,91 @@ const Wallet = () => {
         </p>
       </div>
 
-      {/* Wallet Balance Card */}
-      <Card className="border hover:border-foreground transition-colors">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
+      {/* Top Row - Wallet Balance and Stats Cards */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-4">
+        {/* Wallet Balance Card */}
+        <Card className="lg:col-span-1 border hover:border-foreground transition-colors">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
               </svg>
               Current Balance
-            </span>
-            <div className="text-sm text-muted-foreground">
-              Updated: {new Date().toLocaleDateString('en-IN')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-light mb-4">
+              {walletBalance !== null ? formatCurrency(walletBalance) : '₹0.00'}
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-4xl font-light mb-6">
-            {walletBalance !== null ? formatCurrency(walletBalance) : '₹0.00'}
-          </div>
-          <div className="flex gap-4">
             <Button 
               onClick={() => navigate('/recharge')}
-              className="flex-1"
+              className="w-full"
             >
               <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
               Recharge Wallet
             </Button>
-            <Button 
-              variant="outline"
-              onClick={() => navigate('/history')}
-            >
-              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              View History
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Total Recharges Card */}
+        <Card className="border hover:border-foreground transition-colors">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Recharges
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-light mb-2">
+              {rechargeHistory.filter(r => r.status === 'paid').length}
+            </div>
+            <p className="text-xs text-muted-foreground">Successful payments</p>
+          </CardContent>
+        </Card>
+
+        {/* Total Amount Card */}
+        <Card className="border hover:border-foreground transition-colors">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Amount
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-light mb-2">
+              {formatCurrency(
+                rechargeHistory
+                  .filter(r => r.status === 'paid')
+                  .reduce((sum, r) => sum + parseFloat(r.amount), 0)
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Lifetime recharges</p>
+          </CardContent>
+        </Card>
+
+        {/* Average Recharge Card */}
+        <Card className="border hover:border-foreground transition-colors">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Average Recharge
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-light mb-2">
+              {rechargeHistory.filter(r => r.status === 'paid').length > 0 
+                ? formatCurrency(
+                    rechargeHistory
+                      .filter(r => r.status === 'paid')
+                      .reduce((sum, r) => sum + parseFloat(r.amount), 0) /
+                    rechargeHistory.filter(r => r.status === 'paid').length
+                  )
+                : '₹0.00'
+              }
+            </div>
+            <p className="text-xs text-muted-foreground">Per transaction</p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Balance Status Alert */}
       {walletBalance !== null && walletBalance < 100 && (
@@ -184,11 +228,23 @@ const Wallet = () => {
       {/* Recent Recharge History */}
       <Card className="border hover:border-foreground transition-colors">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            Recent Recharge History
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Recent Recharge History
+            </div>
+            <Button
+              onClick={fetchWalletData}
+              className="flex items-center gap-2 h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={loading}
+            >
+              <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="text-sm font-medium">Refresh</span>
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -202,7 +258,7 @@ const Wallet = () => {
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
                       <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                       </svg>
                     </div>
                     <div>
@@ -244,62 +300,7 @@ const Wallet = () => {
         </CardContent>
       </Card>
 
-      {/* Quick Stats */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="border hover:border-foreground transition-colors">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Recharges
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-light">
-              {rechargeHistory.filter(r => r.status === 'paid').length}
-            </div>
-            <p className="text-xs text-muted-foreground">Successful payments</p>
-          </CardContent>
-        </Card>
 
-        <Card className="border hover:border-foreground transition-colors">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Amount
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-light">
-              {formatCurrency(
-                rechargeHistory
-                  .filter(r => r.status === 'paid')
-                  .reduce((sum, r) => sum + parseFloat(r.amount), 0)
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">Lifetime recharges</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border hover:border-foreground transition-colors">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Average Recharge
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-light">
-              {rechargeHistory.filter(r => r.status === 'paid').length > 0 
-                ? formatCurrency(
-                    rechargeHistory
-                      .filter(r => r.status === 'paid')
-                      .reduce((sum, r) => sum + parseFloat(r.amount), 0) /
-                    rechargeHistory.filter(r => r.status === 'paid').length
-                  )
-                : '₹0.00'
-              }
-            </div>
-            <p className="text-xs text-muted-foreground">Per transaction</p>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 };

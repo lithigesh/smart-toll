@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/config';
-import ThemeSelector from '../components/ThemeSelector';
 import { Plus, Car, Edit, Trash2, RefreshCw } from 'lucide-react';
 
 const Vehicles = () => {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -145,15 +144,12 @@ const Vehicles = () => {
             <button
               onClick={fetchVehicles}
               disabled={loading}
-              className="p-2 rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 font-medium"
               title="Refresh vehicles"
             >
-              <RefreshCw className={`w-4 h-4 text-foreground ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="text-sm">Refresh</span>
             </button>
-            <ThemeSelector />
-            <div className="text-sm text-muted-foreground">
-              Welcome, <span className="font-medium">{user?.name || user?.firstName}!</span>
-            </div>
           </div>
         </div>
       </header>
