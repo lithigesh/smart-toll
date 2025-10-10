@@ -49,6 +49,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('🔍 Login attempt - API endpoint:', API_ENDPOINTS.auth.login);
+      console.log('🔍 Config apiBaseUrl:', API_ENDPOINTS.apiBaseUrl);
+      
       const response = await fetch(API_ENDPOINTS.auth.login, {
         method: 'POST',
         headers: {
@@ -56,6 +59,9 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify({ email, password }),
       });
+
+      console.log('🔍 Response status:', response.status);
+      console.log('🔍 Response URL:', response.url);
 
       const data = await response.json();
 

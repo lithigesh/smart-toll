@@ -1,10 +1,11 @@
 // Environment configuration
 const config = {
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
 };
 
 // API endpoints
 export const API_ENDPOINTS = {
+  apiBaseUrl: config.apiBaseUrl,
   auth: {
     register: `${config.apiBaseUrl}/auth/register`,
     login: `${config.apiBaseUrl}/auth/login`,

@@ -371,19 +371,31 @@ class Vehicle {
    * @returns {Promise<boolean>} - True if deleted successfully
    */
   /**
-   * Delete vehicle (soft delete)
-   * @param {number} vehicleId - Vehicle ID
-   * @param {number} userId - User ID (for authorization)
+   * Delete vehicle (hard delete from database)
+   * @param {string} vehicleId - Vehicle ID (UUID)
+   * @param {string} userId - User ID (for authorization)
    * @returns {Promise<boolean>} - True if deleted successfully
    */
   static async delete(vehicleId, userId) {
-    const result = await query(
-      `UPDATE vehicles 
-       SET is_active = false, updated_at = NOW()
-       WHERE id = $1 AND user_id = $2`,
-      [vehicleId, userId]
-    );
-    return result.rowCount > 0;
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .delete()
+        .eq('id', vehicleId)
+        .eq('user_id', userId)
+        .select();
+
+      if (error) {
+        console.error('Error deleting vehicle:', error);
+        throw new Error(`Failed to delete vehicle: ${error.message}`);
+      }
+
+      console.log(`✅ Vehicle permanently deleted from database: ${vehicleId}`);
+      return data && data.length > 0;
+    } catch (error) {
+      console.error('Error in delete:', error);
+      throw error;
+    }
   }
 
   /**

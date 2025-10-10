@@ -21,15 +21,21 @@ const Vehicles = () => {
       setLoading(true);
       setError('');
 
-      const response = await fetch(`${API_ENDPOINTS.apiBaseUrl}/vehicles/user`, {
+      console.log('Fetching vehicles from:', API_ENDPOINTS.vehicles.list);
+
+      const response = await fetch(API_ENDPOINTS.vehicles.list, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Vehicles data received:', data);
         setVehicles(data.vehicles || []);
       } else {
         const errorText = await response.text();
@@ -50,7 +56,12 @@ const Vehicles = () => {
     }
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.apiBaseUrl}/vehicles/${vehicleId}`, {
+      const deleteUrl = `${API_ENDPOINTS.vehicles.delete}/${vehicleId}`;
+      console.log('🔍 Delete URL:', deleteUrl);
+      console.log('🔍 Vehicle ID:', vehicleId);
+      console.log('🔍 API_ENDPOINTS.vehicles.delete:', API_ENDPOINTS.vehicles.delete);
+      
+      const response = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -58,10 +69,16 @@ const Vehicles = () => {
         }
       });
 
+      console.log('🔍 Delete response status:', response.status);
+      console.log('🔍 Delete response URL:', response.url);
+
       if (response.ok) {
         setVehicles(vehicles.filter(vehicle => vehicle.id !== vehicleId));
+        console.log('✅ Vehicle deleted successfully');
       } else {
-        setError('Failed to delete vehicle');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Delete failed:', response.status, errorData);
+        setError(`Failed to delete vehicle: ${response.status}`);
       }
     } catch (err) {
       console.error('Error deleting vehicle:', err);

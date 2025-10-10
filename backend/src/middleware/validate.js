@@ -281,12 +281,20 @@ const validateDateRange = [
 ];
 
 /**
- * Validation rules for ID parameters
+ * Validation rules for ID parameters (supports both integer and UUID)
  */
 const validateId = (paramName = 'id') => [
   param(paramName)
-    .isInt({ min: 1 })
-    .withMessage(`${paramName} must be a positive integer`),
+    .custom((value) => {
+      // Check if it's a positive integer OR a valid UUID
+      const isInteger = /^\d+$/.test(value) && parseInt(value) > 0;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+      
+      if (!isInteger && !isUUID) {
+        throw new Error(`${paramName} must be a positive integer or valid UUID`);
+      }
+      return true;
+    }),
   
   handleValidationErrors
 ];

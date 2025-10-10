@@ -530,39 +530,39 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-white dark:bg-black flex transition-colors duration-500">
       {/* Sidebar */}
-      <div className={`bg-card shadow-lg border-r border-border transition-all duration-300 ease-in-out ${
-        sidebarCollapsed ? 'w-16' : 'w-64'
-      } flex flex-col`}>
+      <div className={`bg-gray-50 dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 transition-all duration-500 ease-out ${
+        sidebarCollapsed ? 'w-16' : 'w-72'
+      } flex flex-col shadow-xl`}>
         
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-border">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between">
             <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : ''}`}>
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+              <div className="w-10 h-10 bg-black dark:bg-white border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center text-white dark:text-black font-bold text-sm transition-all duration-300 hover:scale-110">
                 ST
               </div>
               {!sidebarCollapsed && (
-                <div className="ml-3">
-                  <h1 className="text-lg font-bold text-foreground">Smart Toll</h1>
-                  <p className="text-xs text-muted-foreground">Dashboard</p>
+                <div className="ml-4">
+                  <h1 className="text-lg font-light text-black dark:text-white tracking-wide transition-colors duration-300">Smart Toll</h1>
+                  <p className="text-xs text-gray-500 dark:text-gray-500 transition-colors duration-300">Management Portal</p>
                 </div>
               )}
             </div>
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
+              className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-300 hover:scale-110"
             >
               <svg 
-                className={`w-4 h-4 text-gray-600 transition-transform duration-300 ${
+                className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-all duration-500 ${
                   sidebarCollapsed ? 'rotate-180' : ''
                 }`} 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
           </div>
@@ -570,31 +570,35 @@ const Dashboard = () => {
 
         {/* Navigation Menu */}
         <nav className="flex-1 p-4">
-          <div className="space-y-1">
+          <div className="space-y-2">
             {menuItems.map((item, index) => {
               const isActive = location.pathname === item.route;
               return (
-                <div key={index} className="group">
+                <div key={index} className="group relative">
                   <button
                     onClick={() => navigate(item.route)}
-                    className={`w-full flex items-center px-3 py-2.5 rounded-md transition-all duration-200 ${
+                    className={`w-full flex items-center px-4 py-4 rounded-xl transition-all duration-300 ease-out font-medium ${
                       isActive 
-                        ? 'bg-accent text-accent-foreground font-medium shadow-sm' 
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg transform scale-105' 
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 hover:text-black dark:hover:text-white hover:scale-105'
                     } ${sidebarCollapsed ? 'justify-center' : ''}`}
                   >
-                    <div className={`${isActive ? 'text-accent-foreground' : 'text-muted-foreground'}`}>
+                    <div className={`${isActive ? 'text-white dark:text-black' : 'text-gray-600 dark:text-gray-400'} transition-colors duration-300`}>
                       {item.icon}
                     </div>
                     {!sidebarCollapsed && (
-                      <span className="ml-3 text-sm">{item.name}</span>
+                      <span className="ml-4 text-sm transition-all duration-300">{item.name}</span>
+                    )}
+                    {!sidebarCollapsed && isActive && (
+                      <div className="ml-auto w-2 h-2 bg-white dark:bg-black rounded-full"></div>
                     )}
                   </button>
                   
                   {/* Tooltip for collapsed state */}
                   {sidebarCollapsed && (
-                    <div className="absolute left-16 ml-2 px-2 py-1 bg-popover/100 text-popover-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-md border border-border">
+                    <div className="absolute left-full ml-4 px-3 py-2 bg-black dark:bg-white text-white dark:text-black text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 shadow-xl whitespace-nowrap">
                       {item.name}
+                      <div className="absolute left-0 top-1/2 transform -translate-x-1 -translate-y-1/2 w-2 h-2 bg-black dark:bg-white rotate-45"></div>
                     </div>
                   )}
                 </div>
@@ -604,20 +608,20 @@ const Dashboard = () => {
         </nav>
 
         {/* User Section */}
-        <div className="p-4 border-t border-border">
+        <div className="p-6 border-t border-gray-200 dark:border-gray-800">
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : ''}`}>
-            <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-medium text-sm">
+            <div className="w-10 h-10 bg-black dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-medium text-sm transition-all duration-300 hover:scale-110">
               {user?.firstName?.charAt(0) || 'U'}
             </div>
             {!sidebarCollapsed && (
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">
+              <div className="ml-4 flex-1">
+                <p className="text-sm font-medium text-black dark:text-white truncate transition-colors duration-300">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 truncate transition-colors duration-300">{user?.email}</p>
                 <button
                   onClick={handleLogout}
-                  className="text-xs text-destructive hover:text-destructive/80 mt-1 transition-colors"
+                  className="text-xs text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white mt-2 transition-all duration-300 hover:scale-105"
                 >
                   Logout
                 </button>
@@ -630,221 +634,272 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="bg-card shadow-sm border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <h2 className="text-2xl font-bold text-foreground">Dashboard</h2>
-            </div>
+        <header className="bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 px-6 lg:px-8 py-6 transition-all duration-500 ease-out">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center space-x-4">
+              <div className="group">
+                <h2 className="text-2xl lg:text-3xl font-light text-black dark:text-white tracking-tight transition-all duration-300 ease-out group-hover:tracking-wide">
+                  Dashboard
+                </h2>
+                <div className="h-0.5 w-0 bg-black dark:bg-white transition-all duration-500 ease-out group-hover:w-full"></div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-6">
               <ThemeSelector />
-              <span className="text-sm text-muted-foreground">
-                Welcome back, <span className="font-medium">{user?.firstName}!</span>
-              </span>
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-5 5l-5-5h5v-5a7.5 7.5 0 00-15 0v5h5" />
-                </svg>
+              <div className="hidden md:block text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300">
+                Welcome back, <span className="font-medium text-black dark:text-white transition-colors duration-300">{user?.firstName}!</span>
+              </div>
+              <div className="group relative">
+                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full flex items-center justify-center transition-all duration-300 ease-out group-hover:scale-110 group-hover:shadow-lg">
+                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-400 transition-all duration-300 group-hover:text-black dark:group-hover:text-white group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-5 5l-5-5h5v-5a7.5 7.5 0 00-15 0v5h5" />
+                  </svg>
+                </div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-black dark:bg-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out transform scale-0 group-hover:scale-100"></div>
               </div>
             </div>
           </div>
         </header>
 
         {/* Dashboard Content */}
-        <main className="flex-1 overflow-auto p-6">
-          {/* Welcome Banner */}
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 rounded-2xl p-8 text-white mb-8 relative overflow-hidden">
-            <div className="relative z-10">
-              <h3 className="text-3xl font-bold mb-3">
-                Welcome back, {user?.firstName}! 👋
-              </h3>
-              <p className="text-blue-100 text-lg">
-                Manage your smart toll payments and track your journey
-              </p>
-            </div>
-            <div className="absolute top-0 right-0 transform translate-x-16 translate-y-8">
-              <div className="w-32 h-32 bg-white bg-opacity-10 rounded-full"></div>
-            </div>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Wallet Balance Card */}
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900">
-                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                </div>
-                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                  BALANCE
-                </span>
-              </div>
-              <div className="mb-4">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Wallet Balance</p>
-                <p className={`text-3xl font-bold ${getBalanceColor()}`}>
-                  {walletBalance !== null ? formatCurrency(walletBalance) : '₹0.00'}
-                </p>
-              </div>
-              <button
-                //onClick={() => setShowRecharge(true)}
-                onClick={() => navigate('/recharge')}
-                className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl hover:bg-primary/90 transition-all duration-200 font-medium text-sm"
-              >
-                💳 Recharge Wallet
-              </button>
-            </div>
-
-            {/* Total Transactions */}
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900">
-                  <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-6z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                  TOTAL
-                </span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Transactions</p>
-                <p className="text-3xl font-bold text-foreground">{rechargeHistory.length}</p>
-                <p className="text-xs text-muted-foreground mt-2">This month</p>
-              </div>
-            </div>
-
-            {/* Account Status */}
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900">
-                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900 px-2 py-1 rounded-full">
-                  ACTIVE
-                </span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Account Status</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">Active ✓</p>
-                <p className="text-xs text-muted-foreground mt-2">Verified Account</p>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900">
-                  <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                  ACTIONS
-                </span>
-              </div>
-              <div className="space-y-3">
-                <button className="w-full text-left text-sm text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
-                  📊 View History
-                </button>
-                <button className="w-full text-left text-sm text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
-                  🚗 Manage Vehicles
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Account Information */}
-            <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-              <div className="px-6 py-4 bg-muted border-b border-border">
-                <h3 className="text-lg font-bold text-foreground flex items-center">
-                  <svg className="w-5 h-5 text-primary mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Account Information
-                </h3>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="flex justify-between items-center py-3 border-b border-border">
-                  <span className="text-sm font-medium text-muted-foreground">Email</span>
-                  <span className="text-sm text-foreground font-medium">{user?.email}</span>
-                </div>
-                <div className="flex justify-between items-center py-3 border-b border-border">
-                  <span className="text-sm font-medium text-muted-foreground">Full Name</span>
-                  <span className="text-sm text-gray-900 font-medium">{user?.name}</span>
-                </div>
-                <div className="flex justify-between items-center py-3">
-                  <span className="text-sm font-medium text-gray-600">Member Since</span>
-                  <span className="text-sm text-gray-900 font-medium">2024</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-              <div className="px-6 py-4 bg-muted border-b border-border">
-                <h3 className="text-lg font-bold text-foreground flex items-center">
-                  <svg className="w-5 h-5 text-primary mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Recent Activity
-                </h3>
-              </div>
-              <div className="p-6">
-                {rechargeHistory.length > 0 ? (
-                  <div className="space-y-4">
-                    {rechargeHistory.slice(0, 3).map((transaction, index) => (
-                      <div key={index} className="flex items-center justify-between py-4 border-b border-border last:border-b-0">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-xl flex items-center justify-center mr-4">
-                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">Wallet Recharge</p>
-                            <p className="text-xs text-gray-500">{formatDate(transaction.created_at)}</p>
-                          </div>
-                        </div>
-                        <span className="text-sm font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                          +{formatCurrency(transaction.amount)}
-                        </span>
+        <main className="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 bg-white dark:bg-black transition-colors duration-500">
+          <div className="max-w-7xl mx-auto">
+            {/* Welcome Banner */}
+            <div className="group relative bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 lg:p-12 mb-8 lg:mb-12 overflow-hidden transition-all duration-500 ease-out hover:shadow-2xl hover:border-gray-300 dark:hover:border-gray-700">
+              <div className="relative z-10">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                  <div className="mb-6 lg:mb-0">
+                    <h3 className="text-3xl lg:text-4xl font-extralight text-black dark:text-white mb-4 tracking-tight transition-all duration-500 group-hover:tracking-wide">
+                      Welcome back, {user?.firstName}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-lg lg:text-xl font-light transition-colors duration-300">
+                      Smart toll management at your fingertips
+                    </p>
+                    <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-black dark:bg-white rounded-full animate-pulse"></div>
+                        <span className="transition-colors duration-300">System Active</span>
                       </div>
-                    ))}
+                      <div className="hidden sm:flex items-center space-x-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <div className="hidden lg:block">
+                    <div className="w-24 h-24 border-2 border-gray-200 dark:border-gray-800 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:border-black dark:group-hover:border-white group-hover:rotate-6">
+                      <svg className="w-12 h-12 text-gray-400 dark:text-gray-600 transition-all duration-500 group-hover:text-black dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-6z" />
                       </svg>
                     </div>
-                    <p className="text-gray-500 font-medium">No recent transactions</p>
-                    <p className="text-gray-400 text-sm mt-1">Your activity will appear here</p>
                   </div>
-                )}
+                </div>
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gray-100 dark:bg-gray-900 rounded-full transform translate-x-16 -translate-y-16 transition-all duration-700 group-hover:scale-150 group-hover:translate-x-8 group-hover:-translate-y-8 opacity-50"></div>
+              <div className="absolute bottom-0 left-0 w-20 h-20 bg-gray-100 dark:bg-gray-900 rounded-full transform -translate-x-10 translate-y-10 transition-all duration-700 group-hover:scale-125 group-hover:-translate-x-5 group-hover:translate-y-5 opacity-30"></div>
+            </div>
+
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 mb-8 lg:mb-12">
+              {/* Wallet Balance Card */}
+              <div className="group bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 lg:p-8 transition-all duration-500 ease-out hover:shadow-xl hover:border-black dark:hover:border-white hover:-translate-y-2">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-12 h-12 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:border-black dark:group-hover:border-white group-hover:scale-110">
+                    <svg className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-all duration-300 group-hover:text-black dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  </div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black">
+                    BALANCE
+                  </div>
+                </div>
+                <div className="mb-6">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-500 mb-2 transition-colors duration-300">Wallet Balance</p>
+                  <p className="text-3xl lg:text-4xl font-extralight text-black dark:text-white transition-all duration-300 group-hover:scale-105">
+                    {walletBalance !== null ? formatCurrency(walletBalance) : '₹0.00'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate('/recharge')}
+                  className="w-full bg-black dark:bg-white text-white dark:text-black py-3 px-4 rounded-xl font-medium text-sm transition-all duration-300 hover:bg-gray-800 dark:hover:bg-gray-200 hover:scale-105 active:scale-95"
+                >
+                  Recharge Wallet
+                </button>
+              </div>
+
+              {/* Total Transactions */}
+              <div className="group bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 lg:p-8 transition-all duration-500 ease-out hover:shadow-xl hover:border-black dark:hover:border-white hover:-translate-y-2">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-12 h-12 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:border-black dark:group-hover:border-white group-hover:scale-110">
+                    <svg className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-all duration-300 group-hover:text-black dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-6z" />
+                    </svg>
+                  </div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black">
+                    TOTAL
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-500 mb-2 transition-colors duration-300">Transactions</p>
+                  <p className="text-3xl lg:text-4xl font-extralight text-black dark:text-white transition-all duration-300 group-hover:scale-105">{rechargeHistory.length}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-600 mt-2 transition-colors duration-300">This month</p>
+                </div>
+              </div>
+
+              {/* Account Status */}
+              <div className="group bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 lg:p-8 transition-all duration-500 ease-out hover:shadow-xl hover:border-black dark:hover:border-white hover:-translate-y-2">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-12 h-12 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:border-black dark:group-hover:border-white group-hover:scale-110">
+                    <svg className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-all duration-300 group-hover:text-black dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black">
+                    ACTIVE
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-500 mb-2 transition-colors duration-300">Account Status</p>
+                  <p className="text-3xl lg:text-4xl font-extralight text-black dark:text-white transition-all duration-300 group-hover:scale-105">Active</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-600 mt-2 transition-colors duration-300">Verified Account</p>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="group bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 lg:p-8 transition-all duration-500 ease-out hover:shadow-xl hover:border-black dark:hover:border-white hover:-translate-y-2">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-12 h-12 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:border-black dark:group-hover:border-white group-hover:scale-110">
+                    <svg className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-all duration-300 group-hover:text-black dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black">
+                    ACTIONS
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => navigate('/history')}
+                    className="w-full text-left text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white py-3 px-4 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all duration-300 hover:scale-105 active:scale-95"
+                  >
+                    View History
+                  </button>
+                  <button 
+                    onClick={() => navigate('/vehicles')}
+                    className="w-full text-left text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white py-3 px-4 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all duration-300 hover:scale-105 active:scale-95"
+                  >
+                    Manage Vehicles
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Bottom Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              {/* Account Information */}
+              <div className="group bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden transition-all duration-500 ease-out hover:shadow-xl hover:border-black dark:hover:border-white hover:-translate-y-1">
+                <div className="px-6 lg:px-8 py-5 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white">
+                  <h3 className="text-xl font-light text-black dark:text-white flex items-center transition-all duration-300 group-hover:text-white dark:group-hover:text-black">
+                    <div className="w-8 h-8 border border-gray-300 dark:border-gray-700 rounded-lg flex items-center justify-center mr-3 transition-all duration-300 group-hover:border-white dark:group-hover:border-black">
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-400 transition-all duration-300 group-hover:text-white dark:group-hover:text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    Account Information
+                  </h3>
+                </div>
+                <div className="p-6 lg:p-8 space-y-6">
+                  <div className="flex justify-between items-center py-4 border-b border-gray-100 dark:border-gray-900 transition-colors duration-300">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-600 rounded-full mr-3 transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white"></div>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors duration-300">Email Address</span>
+                    </div>
+                    <span className="text-sm text-black dark:text-white font-medium transition-colors duration-300">{user?.email}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-4 border-b border-gray-100 dark:border-gray-900 transition-colors duration-300">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-600 rounded-full mr-3 transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white"></div>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors duration-300">Full Name</span>
+                    </div>
+                    <span className="text-sm text-black dark:text-white font-medium transition-colors duration-300">{user?.name || `${user?.firstName} ${user?.lastName}`}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-4">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-gray-400 dark:bg-gray-600 rounded-full mr-3 transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white"></div>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors duration-300">Member Since</span>
+                    </div>
+                    <span className="text-sm text-black dark:text-white font-medium transition-colors duration-300">October 2024</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="group bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden transition-all duration-500 ease-out hover:shadow-xl hover:border-black dark:hover:border-white hover:-translate-y-1">
+                <div className="px-6 lg:px-8 py-5 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 transition-all duration-300 group-hover:bg-black dark:group-hover:bg-white">
+                  <h3 className="text-xl font-light text-black dark:text-white flex items-center transition-all duration-300 group-hover:text-white dark:group-hover:text-black">
+                    <div className="w-8 h-8 border border-gray-300 dark:border-gray-700 rounded-lg flex items-center justify-center mr-3 transition-all duration-300 group-hover:border-white dark:group-hover:border-black">
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-400 transition-all duration-300 group-hover:text-white dark:group-hover:text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    Recent Activity
+                  </h3>
+                </div>
+                <div className="p-6 lg:p-8">
+                  {rechargeHistory.length > 0 ? (
+                    <div className="space-y-4">
+                      {rechargeHistory.slice(0, 3).map((transaction, index) => (
+                        <div key={index} className="flex items-center justify-between py-4 px-4 bg-gray-50 dark:bg-gray-950 rounded-xl border border-gray-100 dark:border-gray-900 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-300 hover:scale-105">
+                          <div className="flex items-center">
+                            <div className="w-12 h-12 border border-gray-200 dark:border-gray-800 rounded-xl flex items-center justify-center mr-4 transition-all duration-300 hover:border-black dark:hover:border-white">
+                              <svg className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-black dark:text-white transition-colors duration-300">Wallet Recharge</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 transition-colors duration-300">{formatDate(transaction.created_at)}</p>
+                            </div>
+                          </div>
+                          <span className="text-sm font-medium text-black dark:text-white bg-gray-100 dark:bg-gray-900 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 transition-all duration-300">
+                            +{formatCurrency(transaction.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <div className="w-20 h-20 border-2 border-gray-200 dark:border-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-6 transition-all duration-300 hover:border-black dark:hover:border-white">
+                        <svg className="w-10 h-10 text-gray-400 dark:text-gray-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-400 font-medium text-lg transition-colors duration-300">No recent transactions</p>
+                      <p className="text-gray-500 dark:text-gray-500 text-sm mt-2 transition-colors duration-300">Your transaction history will appear here</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
         </main>
       </div>
 
       {/* Recharge Modal */}
       {showRecharge && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-2xl p-8 max-w-md w-full shadow-2xl transform transition-all border border-border">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
+          <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-8 max-w-md w-full shadow-2xl transform transition-all duration-300 hover:scale-105">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-foreground">💳 Recharge Wallet</h3>
+              <h3 className="text-xl font-light text-black dark:text-white">Recharge Wallet</h3>
               <button 
                 onClick={() => setShowRecharge(false)}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="p-2 rounded-lg text-gray-500 dark:text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-300"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
