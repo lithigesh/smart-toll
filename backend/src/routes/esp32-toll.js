@@ -164,7 +164,10 @@ router.post('/process', async (req, res) => {
       parsedTimestamp = new Date();
     }
 
+    const currentTime = new Date();
     console.log(`Processed timestamp: ${parsedTimestamp.toISOString()}`);
+    console.log(`Current server time: ${currentTime.toISOString()}`);
+    console.log(`Time difference (seconds): ${(currentTime.getTime() - parsedTimestamp.getTime()) / 1000}`);
 
     // Process the toll transaction using the database function
     const { data, error } = await supabase.rpc('process_esp32_toll', {

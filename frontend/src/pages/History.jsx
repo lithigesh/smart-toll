@@ -241,7 +241,7 @@ const History = () => {
                         <div>
                           <h4 className="font-medium text-foreground">Toll Journey</h4>
                           <p className="text-sm text-muted-foreground">
-                            {formatDate(transaction.timestamp || transaction.device_timestamp || transaction.created_at)}
+                            {formatDate(transaction.device_timestamp || transaction.timestamp || transaction.created_at)}
                           </p>
                         </div>
                       </div>
@@ -264,27 +264,31 @@ const History = () => {
                     </div>
                     
                     {/* Transaction Details Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Device ID</p>
-                        <p className="text-sm font-medium">{transaction.device_id}</p>
+                    <div className="space-y-3 mb-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Device ID</p>
+                          <p className="text-sm font-medium break-all">{transaction.device_id}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Distance</p>
+                          <p className="text-sm font-medium">{transaction.distance_km} km</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Distance</p>
-                        <p className="text-sm font-medium">{transaction.distance_km} km</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Vehicle</p>
-                        <p className="text-sm font-medium">{transaction.vehicle_number || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Route</p>
-                        <p className="text-sm font-medium">
-                          {transaction.start_lat && transaction.start_lon 
-                            ? `${transaction.start_lat.toFixed(4)}, ${transaction.start_lon.toFixed(4)}`
-                            : 'N/A'
-                          }
-                        </p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Vehicle</p>
+                          <p className="text-sm font-medium">{transaction.vehicle_number || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Route</p>
+                          <p className="text-sm font-medium">
+                            {transaction.start_lat && transaction.start_lon 
+                              ? `${transaction.start_lat.toFixed(4)}, ${transaction.start_lon.toFixed(4)}`
+                              : 'N/A'
+                            }
+                          </p>
+                        </div>
                       </div>
                     </div>
                     
@@ -294,7 +298,7 @@ const History = () => {
                         <span className="font-medium">Transaction ID:</span> {transaction.id}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        <span className="font-medium">Processed:</span> {formatFullDate(transaction.timestamp || transaction.device_timestamp || transaction.created_at)}
+                        <span className="font-medium">Timestamp:</span> {formatFullDate(transaction.device_timestamp || transaction.timestamp || transaction.created_at)}
                       </p>
                     </div>
                   </div>

@@ -78,10 +78,10 @@ export function Navbar() {
             {/* Logo and Brand */}
             <div className="flex items-center">
               <Link to="/dashboard" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-gray-900 rounded-lg items-center justify-center hidden sm:flex">
                   <span className="text-white font-bold text-sm">ST</span>
                 </div>
-                <span className="text-xl font-bold text-gray-900 hidden sm:block">
+                <span className="text-xl font-bold text-gray-900">
                   Smart Toll
                 </span>
               </Link>
@@ -225,6 +225,14 @@ export function Navbar() {
                   <p className="text-base font-medium text-gray-900">{user?.name}</p>
                   <p className="text-sm text-gray-500">{user?.email}</p>
                 </div>
+                <Link
+                  to="/profile"
+                  onClick={closeMobileMenu}
+                  className="flex items-center w-full px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-100 rounded-lg"
+                >
+                  <User className="mr-3 h-5 w-5" />
+                  Profile Settings
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="flex items-center w-full px-3 py-2 text-base font-medium text-red-600 hover:bg-red-50 rounded-lg"

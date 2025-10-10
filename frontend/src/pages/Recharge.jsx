@@ -309,19 +309,19 @@ const Recharge = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="bg-slate-50 p-4 pt-8 pb-4">
+      <div className="w-full max-w-md mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+        <div className="mb-6 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-3">
             <Wallet className="h-8 w-8 text-gray-900" />
             Recharge Wallet
           </h1>
-          <p className="text-gray-600 mt-2">Add money to your Smart Toll wallet securely</p>
+          <p className="text-gray-600 text-sm mt-1">Add money to your Smart Toll wallet securely</p>
         </div>
 
         {/* Recharge Card */}
-        <Card className="w-full max-w-md mx-auto p-6">
+        <Card className="w-full p-6">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm mb-4">
               {error}
