@@ -51,29 +51,29 @@ BEGIN
         total_distance_km, toll_amount, wallet_balance_before, 
         wallet_balance_after, status, device_timestamp, processed_at
     ) VALUES
-    -- Successful car transactions (device_timestamp first, then processed_at with small delay)
+    -- Successful car transactions
     ('ESP32_CAR_001', vehicle1_id, test_user_id, 13.0827, 80.2707, 15.5, 31.00, 2500.00, 2469.00, 'success', 
-     CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '5 days' + INTERVAL '15 seconds'),
+     CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '5 days'),
     ('ESP32_CAR_001', vehicle1_id, test_user_id, 12.9716, 77.5946, 25.2, 50.40, 2469.00, 2418.60, 'success', 
-     CURRENT_TIMESTAMP - INTERVAL '3 days', CURRENT_TIMESTAMP - INTERVAL '3 days' + INTERVAL '8 seconds'),
+     CURRENT_TIMESTAMP - INTERVAL '3 days', CURRENT_TIMESTAMP - INTERVAL '3 days'),
     ('ESP32_CAR_001', vehicle1_id, test_user_id, 19.0760, 72.8777, 8.7, 17.40, 2418.60, 2401.20, 'success', 
-     CURRENT_TIMESTAMP - INTERVAL '2 days', CURRENT_TIMESTAMP - INTERVAL '2 days' + INTERVAL '12 seconds'),
+     CURRENT_TIMESTAMP - INTERVAL '2 days', CURRENT_TIMESTAMP - INTERVAL '2 days'),
     
-    -- Successful bike transactions (device_timestamp first, then processed_at with small delay)
+    -- Successful bike transactions
     ('ESP32_BIKE_002', vehicle2_id, test_user_id, 28.7041, 77.1025, 12.3, 12.30, 2401.20, 2388.90, 'success', 
-     CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '1 day' + INTERVAL '6 seconds'),
+     CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '1 day'),
     ('ESP32_BIKE_002', vehicle2_id, test_user_id, 22.5726, 88.3639, 6.8, 6.80, 2388.90, 2382.10, 'success', 
-     CURRENT_TIMESTAMP - INTERVAL '12 hours', CURRENT_TIMESTAMP - INTERVAL '12 hours' + INTERVAL '9 seconds'),
+     CURRENT_TIMESTAMP - INTERVAL '12 hours', CURRENT_TIMESTAMP - INTERVAL '12 hours'),
     
-    -- Recent transactions (device_timestamp first, then processed_at with small delay)
+    -- Recent transactions
     ('ESP32_CAR_001', vehicle1_id, test_user_id, 11.0168, 76.9558, 18.4, 36.80, 2382.10, 2345.30, 'success', 
-     CURRENT_TIMESTAMP - INTERVAL '6 hours', CURRENT_TIMESTAMP - INTERVAL '6 hours' + INTERVAL '11 seconds'),
+     CURRENT_TIMESTAMP - INTERVAL '6 hours', CURRENT_TIMESTAMP - INTERVAL '6 hours'),
     ('ESP32_BIKE_002', vehicle2_id, test_user_id, 26.9124, 75.7873, 9.2, 9.20, 2345.30, 2336.10, 'success', 
-     CURRENT_TIMESTAMP - INTERVAL '2 hours', CURRENT_TIMESTAMP - INTERVAL '2 hours' + INTERVAL '7 seconds'),
+     CURRENT_TIMESTAMP - INTERVAL '2 hours', CURRENT_TIMESTAMP - INTERVAL '2 hours'),
     
-    -- One failed transaction due to insufficient balance (device_timestamp first, then processed_at with small delay)
+    -- One failed transaction due to insufficient balance (simulated)
     ('ESP32_CAR_001', vehicle1_id, test_user_id, 17.3850, 78.4867, 45.0, 90.00, 50.00, 50.00, 'insufficient_balance', 
-     CURRENT_TIMESTAMP - INTERVAL '30 minutes', CURRENT_TIMESTAMP - INTERVAL '30 minutes' + INTERVAL '5 seconds');
+     CURRENT_TIMESTAMP - INTERVAL '30 minutes', CURRENT_TIMESTAMP - INTERVAL '30 minutes');
     
     -- Update final wallet balance
     UPDATE wallets SET balance = 2336.10 WHERE user_id = test_user_id;
