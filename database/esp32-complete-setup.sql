@@ -197,7 +197,7 @@ BEGIN
     -- Update wallet balance
     UPDATE wallets 
     SET balance = v_new_balance, updated_at = CURRENT_TIMESTAMP
-    WHERE user_id = v_user_id;
+    WHERE wallets.user_id = v_user_id;
     
     -- Insert successful transaction
     INSERT INTO esp32_toll_transactions (
