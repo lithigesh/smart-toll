@@ -1,7 +1,6 @@
-const { query, withTransaction } = require('../config/db');
-
-// Import Supabase client
 const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcrypt');
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -14,164 +13,209 @@ const supabase = createClient(
 );
 
 class User {
-  /**
-   * Create a new user
-   * @param {Object} userData - User registration data
-   * @param {string} userData.name - User's full name
-   * @param {string} userData.email - User's email address
-   * @param {string} userData.password_hash - Hashed password
-   * @param {string} userData.role - User role (default: 'user')
-   * @returns {Promise<Object>} - Created user object
-   */
-  static async create({ name, email, password_hash, role = 'user' }) {
-    const { data, error } = await supabase
-      .from('users')
-      .insert({ name, email, password_hash, role })
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+  constructor(data) {
+    this.id = data.id;
+    this.name = data.name;
+    this.email = data.email;
+    this.phone = data.phone;
+    this.password = data.password;
+    this.is_verified = data.is_verified || false;
+    this.created_at = data.created_at;
+    this.updated_at = data.updated_at;
   }
 
-  /**
-   * Find user by email
-   * @param {string} email - User's email address
-   * @returns {Promise<Object|null>} - User object or null if not found
-   */
+  // Static methods
+  static async create(userData) {
+    try {
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      
+      // Create user
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .insert([{
+          name: userData.name,
+          email: userData.email,
+          phone: userData.phone,
+          password: hashedPassword,
+          is_verified: false
+        }])
+        .select()
+        .single();
+
+      if (userError) throw userError;
+
+      // Create wallet for the user
+      const { error: walletError } = await supabase
+        .from('wallets')
+        .insert([{
+          user_id: user.id,
+          balance: 0.00
+        }]);
+
+      if (walletError) throw walletError;
+
+      return new User(user);
+    } catch (error) {
+      throw new Error(`Error creating user: ${error.message}`);
+    }
+  }
+
   static async findByEmail(email) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, name, email, password_hash, role, created_at')
-      .eq('email', email)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-      throw error;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // No rows found
+        throw error;
+      }
+      
+      return new User(data);
+    } catch (error) {
+      throw new Error(`Error finding user by email: ${error.message}`);
     }
-    
-    return data || null;
   }
 
-  /**
-   * Find user by ID
-   * @param {number} id - User ID
-   * @returns {Promise<Object|null>} - User object or null if not found
-   */
   static async findById(id) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, name, email, role, created_at')
-      .eq('id', id)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-      throw error;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // No rows found
+        throw error;
+      }
+      
+      return new User(data);
+    } catch (error) {
+      throw new Error(`Error finding user by ID: ${error.message}`);
     }
-    
-    return data || null;
   }
 
-  /**
-   * Update user profile
-   * @param {number} id - User ID
-   * @param {Object} updates - Fields to update
-   * @returns {Promise<Object>} - Updated user object
-   */
-  static async update(id, updates) {
-    const allowedFields = ['name', 'email', 'password_hash'];
-    const updateFields = Object.keys(updates).filter(key => allowedFields.includes(key));
-    
-    if (updateFields.length === 0) {
-      throw new Error('No valid fields to update');
+  static async findByPhone(phone) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('phone', phone)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // No rows found
+        throw error;
+      }
+      
+      return new User(data);
+    } catch (error) {
+      throw new Error(`Error finding user by phone: ${error.message}`);
     }
-
-    const setClause = updateFields.map((field, index) => `${field} = $${index + 2}`).join(', ');
-    const values = [id, ...updateFields.map(field => updates[field])];
-
-    const result = await query(
-      `UPDATE users 
-       SET ${setClause}, updated_at = NOW()
-       WHERE id = $1
-       RETURNING id, name, email, role, created_at`,
-      values
-    );
-
-    return result.rows[0];
   }
 
-  /**
-   * Check if email already exists
-   * @param {string} email - Email to check
-   * @returns {Promise<boolean>} - True if email exists
-   */
-  static async emailExists(email) {
-    const result = await query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
-    );
-    return result.rows.length > 0;
+  // Instance methods
+  async validatePassword(password) {
+    try {
+      return await bcrypt.compare(password, this.password);
+    } catch (error) {
+      throw new Error(`Error validating password: ${error.message}`);
+    }
   }
 
-  /**
-   * Get user statistics
-   * @param {number} userId - User ID
-   * @returns {Promise<Object>} - User statistics
-   */
-  static async getStats(userId) {
-    const result = await query(
-      `SELECT 
-         COUNT(CASE WHEN t.type = 'deduction' THEN 1 END) as total_toll_crossings,
-         COUNT(CASE WHEN t.type = 'recharge' THEN 1 END) as total_recharges,
-         COALESCE(SUM(CASE WHEN t.type = 'deduction' THEN t.amount END), 0) as total_spent,
-         COALESCE(SUM(CASE WHEN t.type = 'recharge' THEN t.amount END), 0) as total_recharged,
-         COUNT(v.id) as registered_vehicles
-       FROM users u
-       LEFT JOIN transactions t ON u.id = t.user_id
-       LEFT JOIN vehicles v ON u.id = v.user_id
-       WHERE u.id = $1
-       GROUP BY u.id`,
-      [userId]
-    );
+  async update(updateData) {
+    try {
+      // If password is being updated, hash it
+      if (updateData.password) {
+        updateData.password = await bcrypt.hash(updateData.password, 10);
+      }
 
-    return result.rows[0] || {
-      total_toll_crossings: 0,
-      total_recharges: 0,
-      total_spent: 0,
-      total_recharged: 0,
-      registered_vehicles: 0
-    };
+      const { data, error } = await supabase
+        .from('users')
+        .update({ ...updateData, updated_at: new Date() })
+        .eq('id', this.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      // Update current instance
+      Object.assign(this, data);
+      return this;
+    } catch (error) {
+      throw new Error(`Error updating user: ${error.message}`);
+    }
   }
 
-  /**
-   * Get all users (admin only)
-   * @param {Object} options - Query options
-   * @param {number} options.limit - Number of users to return
-   * @param {number} options.offset - Number of users to skip
-   * @returns {Promise<Array>} - Array of users
-   */
-  static async getAll({ limit = 20, offset = 0 } = {}) {
-    const result = await query(
-      `SELECT id, name, email, role, created_at 
-       FROM users 
-       ORDER BY created_at DESC 
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
-    return result.rows;
+  // Get user's wallet
+  async getWallet() {
+    try {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', this.id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Create wallet if it doesn't exist
+          const { data: newWallet, error: createError } = await supabase
+            .from('wallets')
+            .insert([{ user_id: this.id, balance: 0.00 }])
+            .select()
+            .single();
+          
+          if (createError) throw createError;
+          return newWallet;
+        }
+        throw error;
+      }
+      
+      return data;
+    } catch (error) {
+      throw new Error(`Error getting user wallet: ${error.message}`);
+    }
   }
 
-  /**
-   * Delete user (soft delete by setting status)
-   * @param {number} id - User ID
-   * @returns {Promise<boolean>} - True if deleted successfully
-   */
-  static async delete(id) {
-    const result = await query(
-      'DELETE FROM users WHERE id = $1',
-      [id]
-    );
-    return result.rowCount > 0;
+  // Get user's vehicles
+  async getVehicles() {
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('user_id', this.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      throw new Error(`Error getting user vehicles: ${error.message}`);
+    }
+  }
+
+  // Get user's toll transaction history
+  async getTollHistory(limit = 10) {
+    try {
+      const { data, error } = await supabase.rpc('get_user_toll_history', {
+        p_user_id: this.id,
+        p_limit: limit
+      });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      throw new Error(`Error getting toll history: ${error.message}`);
+    }
+  }
+
+  // Serialize for JSON response (exclude sensitive data)
+  toJSON() {
+    const { password, ...userWithoutPassword } = this;
+    return userWithoutPassword;
   }
 }
 

@@ -12,231 +12,83 @@ const supabase = createClient(
 );
 
 class VehicleTypeRate {
+  constructor(data) {
+    this.id = data.id;
+    this.vehicle_type = data.vehicle_type;
+    this.rate_per_km = data.rate_per_km;
+    this.created_at = data.created_at;
+  }
+
   /**
-   * Get rate per km for a specific vehicle type and toll road
-   * @param {string} tollRoadId - Toll road ID
+   * Get rate per km for a specific vehicle type
    * @param {string} vehicleType - Vehicle type (car, truck, bus, bike)
    * @returns {Promise<number|null>} - Rate per km or null if not found
    */
-  static async getRate(tollRoadId, vehicleType) {
-    const { data, error } = await supabase.rpc('get_vehicle_rate', {
-      p_toll_road_id: tollRoadId,
-      p_vehicle_type: vehicleType
-    });
+  static async getRate(vehicleType) {
+    try {
+      const { data, error } = await supabase
+        .from('vehicle_types')
+        .select('rate_per_km')
+        .eq('type', vehicleType)
+        .single();
 
-    if (error) {
-      console.error('Error fetching vehicle type rate:', error);
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching vehicle type rate:', error);
+        throw new Error(`Failed to get rate for vehicle type: ${error.message}`);
+      }
+
+      return data ? data.rate_per_km : null;
+
+    } catch (error) {
+      console.error('Error in getRate:', error);
       throw error;
     }
-
-    return data;
   }
 
   /**
-   * Get all rates for a toll road
-   * @param {string} tollRoadId - Toll road ID
-   * @returns {Promise<Array>} - Array of vehicle type rates
-   */
-  static async getRatesByTollRoad(tollRoadId) {
-    const { data, error } = await supabase
-      .from('vehicle_type_rates')
-      .select(`
-        id,
-        vehicle_type,
-        rate_per_km,
-        created_at,
-        toll_roads!inner(
-          id,
-          name,
-          minimum_fare
-        )
-      `)
-      .eq('toll_road_id', tollRoadId)
-      .order('vehicle_type');
-
-    if (error) {
-      console.error('Error fetching toll road rates:', error);
-      throw error;
-    }
-
-    return data || [];
-  }
-
-  /**
-   * Get all rates for all toll roads (admin view)
-   * @returns {Promise<Array>} - Array of all vehicle type rates
+   * Get all vehicle types and their rates
+   * @returns {Promise<Array>} - Array of all vehicle types
    */
   static async getAllRates() {
-    const { data, error } = await supabase
-      .from('vehicle_type_rates')
-      .select(`
-        id,
-        vehicle_type,
-        rate_per_km,
-        created_at,
-        toll_roads!inner(
-          id,
-          name,
-          minimum_fare,
-          toll_road_zones!inner(
-            id,
-            name
-          )
-        )
-      `)
-      .order('toll_roads.name', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('vehicle_types')
+        .select('*')
+        .order('type');
 
-    if (error) {
-      console.error('Error fetching all vehicle type rates:', error);
+      if (error) {
+        console.error('Error fetching all vehicle type rates:', error);
+        throw new Error(`Failed to get all rates: ${error.message}`);
+      }
+
+      return data || [];
+
+    } catch (error) {
+      console.error('Error in getAllRates:', error);
       throw error;
     }
-
-    return data || [];
-  }
-
-  /**
-   * Create or update vehicle type rate
-   * @param {Object} rateData - Rate data
-   * @param {string} rateData.toll_road_id - Toll road ID
-   * @param {string} rateData.vehicle_type - Vehicle type
-   * @param {number} rateData.rate_per_km - Rate per kilometer
-   * @returns {Promise<Object>} - Created/updated rate
-   */
-  static async upsert(rateData) {
-    const { data, error } = await supabase
-      .from('vehicle_type_rates')
-      .upsert({
-        toll_road_id: rateData.toll_road_id,
-        vehicle_type: rateData.vehicle_type,
-        rate_per_km: rateData.rate_per_km,
-        created_at: new Date().toISOString()
-      }, {
-        onConflict: 'toll_road_id,vehicle_type'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error upserting vehicle type rate:', error);
-      throw error;
-    }
-
-    return data;
-  }
-
-  /**
-   * Delete vehicle type rate
-   * @param {string} rateId - Rate ID
-   * @returns {Promise<boolean>} - Success status
-   */
-  static async delete(rateId) {
-    const { error } = await supabase
-      .from('vehicle_type_rates')
-      .delete()
-      .eq('id', rateId);
-
-    if (error) {
-      console.error('Error deleting vehicle type rate:', error);
-      throw error;
-    }
-
-    return true;
   }
 
   /**
    * Calculate fare for distance and vehicle type
-   * @param {Object} fareData - Fare calculation data
-   * @param {string} fareData.toll_road_id - Toll road ID
-   * @param {string} fareData.vehicle_type - Vehicle type
-   * @param {number} fareData.distance_km - Distance in kilometers
-   * @returns {Promise<Object>} - Fare calculation result
+   * @param {string} vehicleType - Vehicle type
+   * @param {number} distanceKm - Distance in kilometers
+   * @returns {Promise<number>} - Calculated fare
    */
-  static async calculateFare(fareData) {
-    const { data, error } = await supabase.rpc('calculate_fare', {
-      p_distance_km: fareData.distance_km,
-      p_toll_road_id: fareData.toll_road_id,
-      p_vehicle_type: fareData.vehicle_type
-    });
+  static async calculateFare(vehicleType, distanceKm) {
+    try {
+      const rate = await this.getRate(vehicleType);
+      
+      if (!rate) {
+        throw new Error(`No rate found for vehicle type: ${vehicleType}`);
+      }
 
-    if (error) {
-      console.error('Error calculating fare:', error);
+      return rate * distanceKm;
+
+    } catch (error) {
+      console.error('Error in calculateFare:', error);
       throw error;
     }
-
-    return {
-      distance_km: fareData.distance_km,
-      rate_per_km: data.rate_per_km,
-      calculated_fare: data.calculated_fare,
-      minimum_fare: data.minimum_fare,
-      final_fare: data.final_fare,
-      vehicle_type: fareData.vehicle_type
-    };
-  }
-
-  /**
-   * Get rate structure for a zone (all roads in zone)
-   * @param {string} zoneId - Zone ID
-   * @returns {Promise<Array>} - Rate structure for zone
-   */
-  static async getRatesByZone(zoneId) {
-    const { data, error } = await supabase
-      .from('vehicle_type_rates')
-      .select(`
-        id,
-        vehicle_type,
-        rate_per_km,
-        toll_roads!inner(
-          id,
-          name,
-          zone_id,
-          minimum_fare,
-          toll_road_zones!inner(
-            id,
-            name
-          )
-        )
-      `)
-      .eq('toll_roads.zone_id', zoneId)
-      .order('toll_roads.name', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching zone rates:', error);
-      throw error;
-    }
-
-    return data || [];
-  }
-
-  /**
-   * Bulk create rates for a toll road (all vehicle types)
-   * @param {Object} bulkData - Bulk rate data
-   * @param {string} bulkData.toll_road_id - Toll road ID
-   * @param {Object} bulkData.rates - Rates object { car: 5.0, truck: 10.0, bus: 8.0, bike: 3.0 }
-   * @returns {Promise<Array>} - Array of created rates
-   */
-  static async bulkCreate(bulkData) {
-    const { toll_road_id, rates } = bulkData;
-    
-    const rateRecords = Object.entries(rates).map(([vehicle_type, rate_per_km]) => ({
-      toll_road_id,
-      vehicle_type,
-      rate_per_km: parseFloat(rate_per_km),
-      created_at: new Date().toISOString()
-    }));
-
-    const { data, error } = await supabase
-      .from('vehicle_type_rates')
-      .upsert(rateRecords, {
-        onConflict: 'toll_road_id,vehicle_type'
-      })
-      .select();
-
-    if (error) {
-      console.error('Error bulk creating vehicle type rates:', error);
-      throw error;
-    }
-
-    return data || [];
   }
 
   /**

@@ -11,9 +11,6 @@ const {
 const User = require('../models/User');
 const Wallet = require('../models/Wallet');
 const Recharge = require('../models/Recharge');
-const Transaction = require('../models/Transaction');
-
-const { withTransaction, withRetry } = require('../config/db');
 const { asyncErrorHandler, ValidationError, PaymentError, ConflictError } = require('../middleware/errorHandler');
 
 /**
@@ -121,65 +118,38 @@ const verifyPayment = asyncErrorHandler(async (req, res) => {
     console.log(`Using existing wallet for user ${userId}:`, { id: wallet.id, balance: wallet.balance });
   }
 
-  // Process payment in a transaction with retry logic
-  const result = await withRetry(async () => {
-    return await withTransaction(async (client) => {
-      // Check for idempotency - prevent double processing
-      const existingRecharge = await Recharge.findByPaymentIdInTransaction(client, razorpay_payment_id);
-      
-      if (existingRecharge) {
-        // Payment already processed
-        const wallet = await Wallet.findByUserId(userId);
-        return {
-          alreadyProcessed: true,
-          recharge: existingRecharge,
-          newBalance: wallet.balance
-        };
-      }
-
-      // Create recharge record
-      const recharge = await Recharge.createInTransaction(client, {
-        user_id: userId,
-        order_id: razorpay_order_id,
-        payment_id: razorpay_payment_id,
-        amount: amountInRupees,
-        status: 'paid'
-      });
-
-      // Credit wallet (wallet already exists)
-      const updatedWallet = await Wallet.credit(client, userId, amountInRupees);
-      
-      if (!updatedWallet || updatedWallet.balance === undefined) {
-        throw new Error('Failed to credit wallet - invalid response');
-      }
-
-      // Note: For recharges, we don't create transaction records
-      // Recharges are tracked in the recharges table
-      // Transactions table is only for toll deductions
-
-      return {
-        alreadyProcessed: false,
-        recharge,
-        newBalance: updatedWallet.balance
-      };
-    });
-  });
-
-  if (result.alreadyProcessed) {
+  // Check for idempotency - prevent double processing
+  const existingRecharge = await Recharge.findByPaymentId(razorpay_payment_id);
+  
+  if (existingRecharge) {
+    // Payment already processed
+    const wallet = await Wallet.findByUserId(userId);
     return res.json({
       success: true,
       message: 'Payment already processed',
-      recharge_id: result.recharge.id,
-      new_balance: parseFloat(result.newBalance),
-      amount_credited: parseFloat(result.recharge.amount)
+      recharge_id: existingRecharge.id,
+      new_balance: parseFloat(wallet.balance),
+      amount_credited: parseFloat(existingRecharge.amount)
     });
   }
+
+  // Create recharge record
+  const recharge = await Recharge.create({
+    user_id: userId,
+    razorpay_order_id: razorpay_order_id,
+    razorpay_payment_id: razorpay_payment_id,
+    amount: amountInRupees,
+    status: 'paid'
+  });
+
+  // Credit wallet
+  const newBalance = await Wallet.credit(userId, amountInRupees);
 
   res.json({
     success: true,
     message: 'Payment verified and wallet credited successfully',
-    recharge_id: result.recharge.id,
-    new_balance: parseFloat(result.newBalance),
+    recharge_id: recharge.id,
+    new_balance: parseFloat(newBalance),
     amount_credited: amountInRupees,
     payment_details: {
       payment_id: razorpay_payment_id,
@@ -271,35 +241,11 @@ const handlePaymentCaptured = async (payment) => {
     return;
   }
 
-  // Process the captured payment
-  await withRetry(async () => {
-    return await withTransaction(async (client) => {
-      // Update recharge status
-      await Recharge.updateStatusInTransaction(client, existingRecharge.id, 'paid');
+  // Update recharge status
+  await Recharge.updateStatus(existingRecharge.id, 'paid');
 
-      // Credit wallet if not already done
-      const wallet = await Wallet.findByUserId(existingRecharge.user_id);
-      await Wallet.credit(client, existingRecharge.user_id, amountInRupees);
-
-      // Create transaction record if not exists
-      const existingTransaction = await client.query(
-        'SELECT id FROM transactions WHERE user_id = $1 AND type = $2 AND amount = $3 ORDER BY timestamp DESC LIMIT 1',
-        [existingRecharge.user_id, 'recharge', amountInRupees]
-      );
-
-      if (existingTransaction.rows.length === 0) {
-        const updatedWallet = await Wallet.findByUserId(existingRecharge.user_id);
-        await Transaction.createInTransaction(client, {
-          user_id: existingRecharge.user_id,
-          vehicle_id: null,
-          toll_gate_id: null,
-          type: 'recharge',
-          amount: amountInRupees,
-          balance_after: updatedWallet.balance
-        });
-      }
-    });
-  });
+  // Credit wallet
+  await Wallet.credit(existingRecharge.user_id, amountInRupees);
 
   console.log(`Successfully processed captured payment ${paymentId}`);
 };
@@ -339,36 +285,24 @@ const getPaymentHistory = asyncErrorHandler(async (req, res) => {
 
   console.log(`Fetching payment history for user ${userId} with params:`, { limit, offset, status });
 
-  const recharges = await Recharge.getUserRecharges(userId, {
+  const recharges = await Recharge.findByUserId(userId, {
     limit: parseInt(limit),
     offset: parseInt(offset),
     status
   });
 
   console.log(`Found ${recharges.length} recharges for user ${userId}`);
-  console.log('Recharges data:', JSON.stringify(recharges, null, 2));
-
-  const stats = await Recharge.getUserStats(userId);
-  console.log('User stats:', JSON.stringify(stats, null, 2));
 
   const response = {
     recharges: recharges.map(recharge => ({
       id: recharge.id,
-      order_id: recharge.gateway_order_id,
-      payment_id: recharge.gateway_payment_id,
+      order_id: recharge.razorpay_order_id,
+      payment_id: recharge.razorpay_payment_id,
       amount: parseFloat(recharge.amount),
       amount_formatted: `₹${recharge.amount}`,
       status: recharge.status,
       created_at: recharge.created_at
     })),
-    stats: {
-      total_recharges: parseInt(stats.total_recharges),
-      successful_recharges: parseInt(stats.successful_recharges),
-      failed_recharges: parseInt(stats.failed_recharges),
-      total_amount: parseFloat(stats.total_amount),
-      average_amount: parseFloat(stats.average_amount),
-      last_successful_recharge: stats.last_successful_recharge
-    },
     pagination: {
       limit: parseInt(limit),
       offset: parseInt(offset),

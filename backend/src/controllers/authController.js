@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Wallet = require('../models/Wallet');
 const { generateToken, generateRefreshToken } = require('../middleware/authMiddleware');
-const { withTransaction, withRetry } = require('../config/db');
 const { asyncErrorHandler, ConflictError, UnauthorizedError, ValidationError } = require('../middleware/errorHandler');
 
 // Import Supabase client
@@ -24,7 +23,7 @@ const supabase = createClient(
  * POST /api/auth/register
  */
 const register = asyncErrorHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
 
   // Check if user already exists
   const existingUser = await User.findByEmail(email);
@@ -32,58 +31,28 @@ const register = asyncErrorHandler(async (req, res) => {
     throw new ConflictError('User with this email already exists');
   }
 
-  // Hash password
-  const saltRounds = 12;
-  const password_hash = await bcrypt.hash(password, saltRounds);
-
-  // Create user using Supabase client
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .insert({
-      name,
-      email,
-      password_hash,
-      role: 'user'
-    })
-    .select()
-    .single();
-
-  if (userError) {
-    if (userError.code === '23505') { // PostgreSQL unique constraint violation
-      throw new ConflictError('User with this email already exists');
-    }
-    throw new Error(`Failed to create user: ${userError.message}`);
-  }
-
-  // Create wallet for the user
-  const { error: walletError } = await supabase
-    .from('wallets')
-    .insert({
-      user_id: userData.id,
-      balance: 0.00
-    });
-
-  if (walletError) {
-    console.error('Failed to create wallet:', walletError.message);
-    // Note: In a real transaction, we'd rollback the user creation here
-    throw new Error(`Failed to create wallet: ${walletError.message}`);
-  }
-
-  const result = userData;
+  // Create user using User model (handles password hashing and wallet creation)
+  const user = await User.create({
+    name,
+    email,
+    password,
+    phone: phone || '0000000000' // Default phone if not provided
+  });
 
   // Generate tokens
-  const token = generateToken(result);
-  const refreshToken = generateRefreshToken(result);
+  const token = generateToken(user);
+  const refreshToken = generateRefreshToken(user);
 
   // Return success response
   res.status(201).json({
     message: 'User registered successfully',
     user: {
-      id: result.id,
-      name: result.name,
-      email: result.email,
-      role: result.role,
-      created_at: result.created_at
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      is_verified: user.is_verified,
+      created_at: user.created_at
     },
     token,
     refreshToken
@@ -104,7 +73,7 @@ const login = asyncErrorHandler(async (req, res) => {
   }
 
   // Verify password
-  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+  const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
     throw new UnauthorizedError('Invalid email or password');
   }
@@ -147,9 +116,6 @@ const getProfile = asyncErrorHandler(async (req, res) => {
   const wallet = await Wallet.findByUserId(userId);
   const balance = wallet ? wallet.balance : 0;
 
-  // Get user statistics
-  const stats = await User.getStats(userId);
-
   res.json({
     user: {
       id: user.id,
@@ -161,13 +127,6 @@ const getProfile = asyncErrorHandler(async (req, res) => {
     wallet: {
       balance: parseFloat(balance),
       balance_formatted: `₹${balance}`
-    },
-    stats: {
-      total_toll_crossings: parseInt(stats.total_toll_crossings) || 0,
-      total_recharges: parseInt(stats.total_recharges) || 0,
-      total_spent: parseFloat(stats.total_spent) || 0,
-      total_recharged: parseFloat(stats.total_recharged) || 0,
-      registered_vehicles: parseInt(stats.registered_vehicles) || 0
     }
   });
 });
@@ -239,7 +198,7 @@ const changePassword = asyncErrorHandler(async (req, res) => {
   }
 
   // Verify current password
-  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
   if (!isCurrentPasswordValid) {
     throw new UnauthorizedError('Current password is incorrect');
   }
@@ -249,7 +208,7 @@ const changePassword = asyncErrorHandler(async (req, res) => {
   const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
 
   // Update password in database
-  await User.update(userId, { password_hash: newPasswordHash });
+  await user.update({ password: newPasswordHash });
 
   res.json({
     message: 'Password changed successfully'

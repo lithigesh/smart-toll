@@ -5,10 +5,8 @@ const router = express.Router();
 const {
   getBalance,
   getTransactions,
-  getDailySummary,
-  getWalletStats,
-  getLowBalanceAlert,
-  deduct
+  getTransactionStats,
+  getLowBalanceAlert
 } = require('../controllers/walletController');
 
 // Import middleware
@@ -46,28 +44,16 @@ router.get('/transactions', [
 ], getTransactions);
 
 /**
- * @route   GET /api/wallet/daily-summary
- * @desc    Get daily transaction summary for the user
+ * @route   GET /api/wallet/stats
+ * @desc    Get transaction statistics for the user
  * @access  Private
  */
-router.get('/daily-summary', [
+router.get('/stats', [
   query('days')
     .optional()
     .isInt({ min: 1, max: 365 })
     .withMessage('Days must be between 1 and 365')
-], getDailySummary);
-
-/**
- * @route   GET /api/wallet/stats
- * @desc    Get wallet statistics for different time periods
- * @access  Private
- */
-router.get('/stats', [
-  query('period')
-    .optional()
-    .isIn(['day', 'week', 'month', 'year'])
-    .withMessage('Period must be one of: day, week, month, year')
-], getWalletStats);
+], getTransactionStats);
 
 /**
  * @route   GET /api/wallet/low-balance-alert
@@ -81,20 +67,6 @@ router.get('/low-balance-alert', [
     .withMessage('Threshold must be a non-negative number')
 ], getLowBalanceAlert);
 
-/**
- * @route   POST /api/wallet/deduct
- * @desc    Deduct amount from user's wallet
- * @access  Private
- */
-router.post('/deduct', [
-  body('amount')
-    .notEmpty()
-    .isFloat({ min: 0.01 })
-    .withMessage('Amount must be positive'),
-  body('description')
-    .notEmpty()
-    .isLength({ min: 5, max: 200 })
-    .withMessage('Description must be between 5-200 characters')
-], deduct);
+
 
 module.exports = router;

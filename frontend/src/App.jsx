@@ -1,10 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { AppLayout } from './components/Layout';
 import ProtectedRoute from './pages/ProtectedRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import Wallet from './pages/Wallet';
 import Recharge from './pages/Recharge';
 import History from './pages/History';
 import Vehicles from './pages/Vehicles';
@@ -21,34 +23,52 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               
-              {/* Protected routes */}
+              {/* Protected routes with sidebar layout */}
               <Route path="/dashboard" element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <AppLayout>
+                    <Dashboard />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/wallet" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Wallet />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               
               <Route path="/recharge" element={
                 <ProtectedRoute>
-                  <Recharge />
+                  <AppLayout>
+                    <Recharge />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               
               <Route path="/history" element={
                 <ProtectedRoute>
-                  <History />
+                  <AppLayout>
+                    <History />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               
               <Route path="/vehicles" element={
                 <ProtectedRoute>
-                  <Vehicles />
+                  <AppLayout>
+                    <Vehicles />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               
               <Route path="/vehicles/add" element={
                 <ProtectedRoute>
-                  <AddVehicle />
+                  <AppLayout>
+                    <AddVehicle />
+                  </AppLayout>
                 </ProtectedRoute>
               } />
               

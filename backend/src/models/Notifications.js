@@ -44,48 +44,22 @@ class Notifications {
   }
 
   /**
-   * Create toll entry notification
+   * Create toll transaction notification
    * @param {string} userId - User ID
-   * @param {Object} tollData - Toll data
+   * @param {Object} tollData - Toll transaction data
    * @returns {Promise<Object>} - Created notification
    */
-  static async createTollEntryNotification(userId, tollData) {
+  static async createTollTransactionNotification(userId, tollData) {
     return this.create({
       user_id: userId,
-      type: 'toll_entry',
-      title: 'Toll Zone Entered',
-      message: `Your vehicle has entered ${tollData.zoneName}. Toll charges will apply.`,
+      type: 'toll_transaction',
+      title: 'Toll Charged',
+      message: `₹${tollData.tollAmount.toFixed(2)} charged for ${tollData.distanceKm.toFixed(1)}km travel. Device: ${tollData.deviceId}`,
       data: {
-        toll_zone_id: tollData.zoneId,
-        zone_name: tollData.zoneName,
-        rate_per_km: tollData.ratePerKm,
-        entry_time: tollData.entryTime,
-        vehicle_id: tollData.vehicleId
-      },
-      priority: 'high'
-    });
-  }
-
-  /**
-   * Create toll exit notification
-   * @param {string} userId - User ID
-   * @param {Object} tollData - Toll exit data
-   * @returns {Promise<Object>} - Created notification
-   */
-  static async createTollExitNotification(userId, tollData) {
-    return this.create({
-      user_id: userId,
-      type: 'toll_exit',
-      title: 'Toll Charge Applied',
-      message: `₹${tollData.fareAmount.toFixed(2)} charged for ${tollData.distanceKm.toFixed(1)}km in ${tollData.zoneName}.`,
-      data: {
-        toll_zone_id: tollData.zoneId,
-        zone_name: tollData.zoneName,
+        device_id: tollData.deviceId,
         distance_km: tollData.distanceKm,
-        fare_amount: tollData.fareAmount,
-        exit_time: tollData.exitTime,
-        vehicle_id: tollData.vehicleId,
-        toll_history_id: tollData.tollHistoryId
+        toll_amount: tollData.tollAmount,
+        transaction_time: tollData.timestamp
       },
       priority: 'medium'
     });
@@ -124,14 +98,13 @@ class Notifications {
       user_id: userId,
       type: 'insufficient_balance',
       title: 'Toll Payment Failed',
-      message: `Insufficient balance for ₹${tollData.fareAmount.toFixed(2)} toll charge. Please recharge your wallet.`,
+      message: `Insufficient balance for ₹${tollData.tollAmount.toFixed(2)} toll charge. Please recharge your wallet.`,
       data: {
-        required_amount: tollData.fareAmount,
+        required_amount: tollData.tollAmount,
         current_balance: tollData.currentBalance,
-        shortage: tollData.fareAmount - tollData.currentBalance,
-        toll_zone_id: tollData.zoneId,
-        zone_name: tollData.zoneName,
-        vehicle_id: tollData.vehicleId
+        shortage: tollData.tollAmount - tollData.currentBalance,
+        device_id: tollData.deviceId,
+        distance_km: tollData.distanceKm
       },
       priority: 'critical'
     });

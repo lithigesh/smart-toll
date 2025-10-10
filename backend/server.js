@@ -8,17 +8,12 @@ const { healthCheck } = require('./src/db/connection');
 // Import middleware
 const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler');
 
-// Import routes
+// Import routes - SIMPLIFIED for ESP32 architecture
 const authRoutes = require('./src/routes/auth');
 const paymentRoutes = require('./src/routes/payment');
-const tollRoutes = require('./src/routes/toll');
 const walletRoutes = require('./src/routes/wallet');
-const dashboardRoutes = require('./src/routes/dashboard');
-const gpsRoutes = require('./src/routes/gps');
-const distanceRoutes = require('./src/routes/distance');
-const tollProcessingRoutes = require('./src/routes/toll-processing');
-const notificationsRoutes = require('./src/routes/notifications');
 const vehicleRoutes = require('./src/routes/vehicle');
+const esp32TollRoutes = require('./src/routes/esp32-toll');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -84,10 +79,9 @@ app.get('/health', async (req, res) => {
       environment: process.env.NODE_ENV || 'development',
       database: dbHealth,
       services: {
-        geofencing: 'active',
-        tollProcessing: 'active',
-        distanceCalculation: 'active',
-        paymentGateway: 'active'
+        esp32TollProcessing: 'active',
+        paymentGateway: 'active',
+        walletManagement: 'active'
       }
     });
   } catch (error) {
@@ -96,26 +90,20 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       error: error.message,
       services: {
-        geofencing: 'unknown',
-        tollProcessing: 'unknown', 
-        distanceCalculation: 'unknown',
-        paymentGateway: 'unknown'
+        esp32TollProcessing: 'unknown',
+        paymentGateway: 'unknown',
+        walletManagement: 'unknown'
       }
     });
   }
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/payment', paymentRoutes);
-app.use('/api/toll', tollRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/gps', gpsRoutes);
-app.use('/api/distance', distanceRoutes);
-app.use('/api/toll-processing', tollProcessingRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api/vehicles', vehicleRoutes);
+// API Routes - SIMPLIFIED for ESP32 architecture
+app.use('/api/auth', authRoutes);           // User authentication and signup
+app.use('/api/payment', paymentRoutes);     // Razorpay wallet recharge
+app.use('/api/wallet', walletRoutes);       // Wallet balance management
+app.use('/api/vehicles', vehicleRoutes);    // Vehicle registration and management
+app.use('/api/esp32-toll', esp32TollRoutes); // ESP32 device toll processing
 
 // Root endpoint
 app.get('/', (req, res) => {
