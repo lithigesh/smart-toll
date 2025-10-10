@@ -2,15 +2,16 @@
 
 A comprehensive smart toll collection system with React frontend, Node.js backend, and ESP32 integration for automated vehicle toll processing.
 
-## 🔗 Live Links
+## 🌐 Project Deployment
 
-- **Frontend**: https://smart-toll.vercel.app/
-- **Backend API**: https://smart-toll-api.vercel.app/
+- **Frontend**: [View Live Site](https://smart-toll.vercel.app/) – Deployed on **Vercel** for a responsive and user-friendly web interface.  
+- **Backend API**: [View API](https://smart-toll-api.vercel.app/) – Hosted on **Vercel Serverless Functions**, providing secure endpoints for toll data processing.
 
 ## 🔧 Wokwi Simulations
 
-- **Transmitter**: https://wokwi.com/projects/444441271760229377
-- **Receiver**: https://wokwi.com/projects/444442750515809281
+- **Transmitter**: [Open Simulation](https://wokwi.com/projects/444441271760229377) – Simulates the **vehicle unit** for transmitting encoded data.  
+- **Receiver**: [Open Simulation](https://wokwi.com/projects/444442750515809281) – Represents the **Toll Booth Unit** for decoding and verifying data.
+
 
 ## Features
 
