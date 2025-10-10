@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import SearchBar from './SearchBar';
 import SearchOverlay from './SearchOverlay';
+import { API_ENDPOINTS } from '../config/config';
 
 const AdminLayout = () => {
   const [searchResults, setSearchResults] = useState(null);
@@ -21,7 +22,7 @@ const AdminLayout = () => {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:3001/api/admin/search/users?search=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${API_ENDPOINTS.admin.searchUsers}?search=${encodeURIComponent(query)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

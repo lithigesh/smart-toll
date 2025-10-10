@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/config';
 
 const AuthContext = createContext();
 
@@ -19,15 +20,23 @@ export const AuthProvider = ({ children }) => {
     // Check for existing admin token in localStorage
     const token = localStorage.getItem('adminToken');
     if (token) {
-      setAdminToken(token);
-      setIsAuthenticated(true);
+      // Quick validation - check if it looks like a JWT (has 3 parts separated by dots)
+      const tokenParts = token.split('.');
+      if (tokenParts.length === 3) {
+        setAdminToken(token);
+        setIsAuthenticated(true);
+      } else {
+        // Invalid token format, clear it
+        console.log('Invalid token format detected, clearing...');
+        localStorage.removeItem('adminToken');
+      }
     }
     setLoading(false);
   }, []);
 
   const login = async (username, password) => {
     try {
-      const response = await fetch('http://localhost:3001/api/admin/login', {
+      const response = await fetch(API_ENDPOINTS.admin.login, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

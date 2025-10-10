@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Download, Eye, Edit, Trash2 } from 'lucide-react';
 import BorderlessTable from '../components/BorderlessTable';
+import { API_ENDPOINTS } from '../config/config';
+import { useAuth } from '../context/AuthContext';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -14,6 +17,8 @@ const Users = () => {
   const [filters, setFilters] = useState({
     status: 'all'
   });
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchUsers();
@@ -30,7 +35,7 @@ const Users = () => {
         ...filters
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/search/users?${queryParams}`, {
+      const response = await fetch(`${API_ENDPOINTS.admin.searchUsers}?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -38,6 +43,12 @@ const Users = () => {
       });
 
       if (!response.ok) {
+        // If it's a 400 error (malformed token), clear the token and redirect to login
+        if (response.status === 400) {
+          logout();
+          navigate('/admin/login');
+          return;
+        }
         throw new Error('Failed to fetch users');
       }
 

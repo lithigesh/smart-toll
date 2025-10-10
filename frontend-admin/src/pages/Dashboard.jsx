@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Users, Car, CreditCard, TrendingUp, Activity, DollarSign } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/config';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
   const [analytics, setAnalytics] = useState({
@@ -9,6 +11,8 @@ const Dashboard = () => {
     transactions: 0
   });
   const [loading, setLoading] = useState(true);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchAnalytics();
@@ -18,7 +22,15 @@ const Dashboard = () => {
     try {
       // Fetch real analytics from backend API
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:3001/api/admin/analytics', {
+      console.log('Token from localStorage:', token);
+      console.log('Token type:', typeof token);
+      console.log('Token length:', token?.length);
+      
+      if (!token) {
+        throw new Error('No admin token found');
+      }
+      
+      const response = await fetch(API_ENDPOINTS.admin.analytics, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -26,6 +38,17 @@ const Dashboard = () => {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.log('Response error:', errorText);
+        
+        // If it's a 400 error (malformed token), clear the token and redirect to login
+        if (response.status === 400) {
+          console.log('Token appears to be malformed, clearing and redirecting to login');
+          logout();
+          navigate('/admin/login');
+          return;
+        }
+        
         throw new Error('Failed to fetch analytics');
       }
 
@@ -148,41 +171,6 @@ const Dashboard = () => {
               View Transactions
             </span>
           </Link>
-        </div>
-      </div>
-
-      {/* Recent Activity (Placeholder) */}
-      <div className="bg-card rounded-lg border border-border p-6">
-        <h2 className="text-xl font-semibold text-card-foreground mb-4">
-          System Status
-        </h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-medium text-green-800">
-                All Systems Operational
-              </span>
-            </div>
-            <span className="text-xs text-green-600">
-              Last checked: {new Date().toLocaleTimeString()}
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground">Database</p>
-              <p className="text-lg font-semibold text-green-600">Online</p>
-            </div>
-            <div className="text-center p-3 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground">Payment Gateway</p>
-              <p className="text-lg font-semibold text-green-600">Active</p>
-            </div>
-            <div className="text-center p-3 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground">ESP32 Devices</p>
-              <p className="text-lg font-semibold text-green-600">Connected</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

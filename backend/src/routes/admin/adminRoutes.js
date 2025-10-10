@@ -6,7 +6,13 @@ const router = express.Router();
 
 // Admin login middleware
 const authenticateAdmin = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+  const authHeader = req.header('Authorization');
+  console.log('Raw Authorization header:', authHeader);
+  
+  const token = authHeader?.replace('Bearer ', '');
+  console.log('Extracted token:', token);
+  console.log('Token type:', typeof token);
+  console.log('Token length:', token?.length);
   
   if (!token) {
     return res.status(401).json({ message: 'Access denied. No token provided.' });
@@ -14,13 +20,16 @@ const authenticateAdmin = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Token decoded successfully:', decoded);
     if (decoded.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Admin role required.' });
     }
     req.admin = decoded;
     next();
   } catch (error) {
-    res.status(400).json({ message: 'Invalid token.' });
+    console.log('JWT verification failed:', error.message);
+    console.log('Full error:', error);
+    res.status(400).json({ message: 'Invalid token.', error: error.message });
   }
 };
 
@@ -57,6 +66,10 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    console.log('Generated admin token:', token);
+    console.log('Token type:', typeof token);
+    console.log('Token length:', token.length);
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -80,32 +93,37 @@ router.post('/login', async (req, res) => {
 router.get('/analytics', authenticateAdmin, async (req, res) => {
   try {
     // Get total users count
-    const { count: totalUsers } = await supabase
+    const { count: totalUsers, error: usersError } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true });
 
     // Get total vehicles count
-    const { count: totalVehicles } = await supabase
+    const { count: totalVehicles, error: vehiclesError } = await supabase
       .from('vehicles')
       .select('*', { count: 'exact', head: true });
 
     // Get total transactions count (from esp32_toll_transactions - actual toll transactions)
-    const { count: totalTransactions } = await supabase
+    const { count: totalTransactions, error: transactionsError } = await supabase
       .from('esp32_toll_transactions')
       .select('*', { count: 'exact', head: true });
 
-    // Get recent transactions for chart data
-    const { data: recentTransactions } = await supabase
-      .from('esp32_toll_transactions')
-      .select('toll_amount, processed_at')
-      .order('processed_at', { ascending: false })
-      .limit(30);
+    // Check for any database errors
+    if (usersError || vehiclesError || transactionsError) {
+      console.error('Database errors:', { usersError, vehiclesError, transactionsError });
+      return res.status(500).json({
+        success: false,
+        message: 'Database query failed',
+        errors: { usersError, vehiclesError, transactionsError }
+      });
+    }
 
-    res.json({
+    const response = {
       users: totalUsers || 0,
       vehicles: totalVehicles || 0,
       transactions: totalTransactions || 0
-    });
+    };
+    
+    res.json(response);
 
   } catch (error) {
     console.error('Analytics error:', error);

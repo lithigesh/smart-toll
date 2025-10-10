@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Download, Eye, CreditCard, TrendingUp } from 'lucide-react';
 import BorderlessTable from '../components/BorderlessTable';
+import { API_ENDPOINTS } from '../config/config';
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -31,7 +32,7 @@ const Transactions = () => {
         ...filters
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/search/transactions?${queryParams}`, {
+      const response = await fetch(`${API_ENDPOINTS.admin.searchTransactions}?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

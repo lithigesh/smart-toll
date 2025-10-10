@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Download, Eye, Edit, Car } from 'lucide-react';
 import BorderlessTable from '../components/BorderlessTable';
+import { API_ENDPOINTS } from '../config/config';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
@@ -30,7 +31,7 @@ const Vehicles = () => {
         ...filters
       });
 
-      const response = await fetch(`http://localhost:3001/api/admin/search/vehicles?${queryParams}`, {
+      const response = await fetch(`${API_ENDPOINTS.admin.searchVehicles}?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
