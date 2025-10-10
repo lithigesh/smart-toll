@@ -34,7 +34,15 @@ router.get('/transactions', authMiddleware, async (req, res) => {
     const { data: transactions, error } = await supabase
       .from('esp32_toll_transactions')
       .select(`
-        *,
+        id,
+        device_id,
+        start_lat,
+        start_lon,
+        total_distance_km,
+        toll_amount,
+        status,
+        device_timestamp,
+        processed_at,
         vehicles (
           vehicle_number,
           vehicle_type
@@ -53,19 +61,29 @@ router.get('/transactions', authMiddleware, async (req, res) => {
     }
 
     // Format transactions for frontend
-    const formattedTransactions = transactions.map(transaction => ({
-      id: transaction.id,
-      device_id: transaction.device_id,
-      start_lat: transaction.start_lat,
-      start_lon: transaction.start_lon,
-      distance_km: transaction.total_distance_km,
-      toll_amount: transaction.toll_amount,
-      status: transaction.status,
-      created_at: transaction.processed_at,
-      vehicle_number: transaction.vehicles?.vehicle_number || null,
-      vehicle_type: transaction.vehicles?.vehicle_type || null,
-      timestamp: transaction.device_timestamp || transaction.processed_at
-    }));
+    const formattedTransactions = transactions.map(transaction => {
+      console.log('Transaction timestamps:', {
+        id: transaction.id,
+        device_timestamp: transaction.device_timestamp,
+        processed_at: transaction.processed_at
+      });
+      
+      return {
+        id: transaction.id,
+        device_id: transaction.device_id,
+        start_lat: transaction.start_lat,
+        start_lon: transaction.start_lon,
+        distance_km: transaction.total_distance_km,
+        toll_amount: transaction.toll_amount,
+        status: transaction.status,
+        created_at: transaction.processed_at,
+        vehicle_number: transaction.vehicles?.vehicle_number || null,
+        vehicle_type: transaction.vehicles?.vehicle_type || null,
+        timestamp: transaction.device_timestamp || transaction.processed_at,
+        device_timestamp: transaction.device_timestamp,
+        processed_at: transaction.processed_at
+      };
+    });
 
     console.log(`Found ${formattedTransactions.length} ESP32 transactions for user ${userId}`);
 
