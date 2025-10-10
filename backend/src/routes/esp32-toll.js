@@ -126,7 +126,31 @@ router.post('/process', async (req, res) => {
       });
     }
 
-    console.log(`ESP32 Toll Request - Device: ${device_id}, Distance: ${total_distance_km}km`);
+    console.log(`ESP32 Toll Request - Device: ${device_id}, Distance: ${total_distance_km}km, Timestamp: ${timestamp}`);
+
+    // Parse and validate timestamp - handle different formats
+    let parsedTimestamp;
+    try {
+      // Handle ESP32 format: "2025:10:10 21:52:01" -> "2025-10-10T21:52:01Z"
+      const normalizedTimestamp = timestamp.replace(/:/g, '-').replace(' ', 'T') + 'Z';
+      parsedTimestamp = new Date(normalizedTimestamp);
+      
+      // Fallback: try parsing original timestamp directly
+      if (isNaN(parsedTimestamp.getTime())) {
+        parsedTimestamp = new Date(timestamp);
+      }
+      
+      // If still invalid, use current time
+      if (isNaN(parsedTimestamp.getTime())) {
+        console.warn(`Invalid timestamp format: ${timestamp}, using current time`);
+        parsedTimestamp = new Date();
+      }
+    } catch (timestampError) {
+      console.warn(`Error parsing timestamp: ${timestamp}, using current time`, timestampError);
+      parsedTimestamp = new Date();
+    }
+
+    console.log(`Processed timestamp: ${parsedTimestamp.toISOString()}`);
 
     // Process the toll transaction using the database function
     const { data, error } = await supabase.rpc('process_esp32_toll', {
@@ -134,7 +158,7 @@ router.post('/process', async (req, res) => {
       p_start_lat: parseFloat(start_lat),
       p_start_lon: parseFloat(start_lon),
       p_total_distance_km: parseFloat(total_distance_km),
-      p_device_timestamp: new Date(timestamp).toISOString()
+      p_device_timestamp: parsedTimestamp.toISOString()
     });
 
     if (error) {
@@ -179,9 +203,17 @@ router.post('/process', async (req, res) => {
 
   } catch (error) {
     console.error('Error processing ESP32 toll transaction:', error);
+    console.error('Request body:', req.body);
+    console.error('Error stack:', error.stack);
+    
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      debug: process.env.NODE_ENV === 'development' ? {
+        timestamp: new Date().toISOString(),
+        request_body: req.body
+      } : undefined
     });
   }
 });
