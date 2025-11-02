@@ -12,7 +12,6 @@ A comprehensive smart toll collection system with React frontend, Node.js backen
 - **Transmitter**: [Open Simulation](https://wokwi.com/projects/444441271760229377) – Simulates the **vehicle unit** for transmitting encoded data.  
 - **Receiver**: [Open Simulation](https://wokwi.com/projects/444442750515809281) – Represents the **Toll Booth Unit** for decoding and verifying data.
 
-
 ## Features
 
 - User authentication and wallet management
