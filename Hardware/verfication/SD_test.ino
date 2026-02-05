@@ -29,9 +29,9 @@ void setup() {
 
   Serial.println("SD init OK");
 
-  myFile = SD.open("/swami.txt", FILE_WRITE);
+  myFile = SD.open("/verification.txt", FILE_WRITE);
   if (myFile) {
-    myFile.println("Darshan daa gommala");
+    myFile.println("If you can see this. SD worked!!");
     myFile.close();
   }
 
