@@ -80,7 +80,7 @@ export function Navbar() {
               <Link to="/dashboard" className="flex items-center space-x-2">
                 <div className="w-8 h-8 rounded-lg items-center justify-center hidden sm:flex">
                   <img
-                    src="/logo.png"
+                    src="/logo1.png"
                     alt="Smart Toll logo"
                     className="w-8 h-8 object-contain"
                   />
