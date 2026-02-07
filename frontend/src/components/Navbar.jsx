@@ -78,8 +78,12 @@ export function Navbar() {
             {/* Logo and Brand */}
             <div className="flex items-center">
               <Link to="/dashboard" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-900 rounded-lg items-center justify-center hidden sm:flex">
-                  <span className="text-white font-bold text-sm">ST</span>
+                <div className="w-8 h-8 rounded-lg items-center justify-center hidden sm:flex">
+                  <img
+                    src="/logo.png"
+                    alt="Smart Toll logo"
+                    className="w-8 h-8 object-contain"
+                  />
                 </div>
                 <span className="text-xl font-bold text-gray-900">
                   Smart Toll
