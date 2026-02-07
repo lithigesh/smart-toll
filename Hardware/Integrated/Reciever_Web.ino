@@ -352,12 +352,6 @@ void loop() {
         Serial.print("RX Payload: ");
         Serial.println(rxBuffer);
 
-        // Debounce API posts
-        if (millis() - lastPostMs < MIN_POST_INTERVAL_MS) {
-          showOnOLED("Packet Received:", String(rxBuffer), "(debounced)");
-          return;
-        }
-
         String deviceId;
         float startLat;
         float startLon;
@@ -375,27 +369,28 @@ void loop() {
           timestamp = getIsoTimestampUtc();
         }
 
+        // Always show parsed packet info on OLED (no HTTP details)
+        showOnOLED(
+          String("ID: ") + deviceId,
+          String("Dist: ") + String(totalDistanceKm, 2) + String(" km"),
+          timestamp
+        );
+
+        // Debounce only the API POST (still display packet info above)
+        if (millis() - lastPostMs < MIN_POST_INTERVAL_MS) {
+          return;
+        }
+
         String apiResp;
         int httpCode;
         bool posted = postTollTransaction(deviceId, startLat, startLon, totalDistanceKm, timestamp, apiResp, httpCode);
         lastPostMs = millis();
 
-        if (posted) {
-          // Try to extract a quick message from response
-          String msg = "";
-          StaticJsonDocument<768> respDoc;
-          if (deserializeJson(respDoc, apiResp) == DeserializationError::Ok) {
-            if (respDoc["message"].is<const char*>()) msg = String((const char*)respDoc["message"]);
-          }
-          if (msg.length() == 0) msg = "Posted";
-
-          showOnOLED("API POST OK", String("HTTP ") + httpCode, msg);
-        } else {
-          showOnOLED("API POST FAIL", String("HTTP ") + httpCode);
+        // Keep API result on Serial only (OLED stays on parsed info)
+        if (!posted) {
+          Serial.print("API POST FAIL HTTP ");
+          Serial.println(httpCode);
         }
-
-        /* ---------- OLED OUTPUT ---------- */
-        // NOTE: OLED already updated above with API status.
       } 
       else {
         Serial.println("RX payload size invalid");
