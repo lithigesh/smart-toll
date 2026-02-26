@@ -26,6 +26,12 @@ char rxBuffer[150];   // payload buffer
 // Your API endpoint (HTTPS supported). Example: https://smart-toll-api.vercel.app/api/esp32-toll/process
 static const char* API_URL = "https://smart-toll-api.vercel.app/api/esp32-toll/process";
 
+// Fixed Toll Gate location (end coordinates)
+// DMS: 10°54'13.31"N 76°53'57.59"E
+// Decimal degrees: 10.9036972222, 76.8993305556
+static const float TOLL_GATE_END_LAT = 10.903697f;
+static const float TOLL_GATE_END_LON = 76.899331f;
+
 // NTP time sync (used if incoming payload doesn't include a timestamp)
 static const char* NTP_SERVER_1 = "pool.ntp.org";
 static const char* NTP_SERVER_2 = "time.nist.gov";
@@ -230,10 +236,12 @@ bool postTollTransaction(
     return false;
   }
 
-  StaticJsonDocument<256> payload;
+  StaticJsonDocument<320> payload;
   payload["device_id"] = deviceId;
   payload["start_lat"] = startLat;
   payload["start_lon"] = startLon;
+  payload["end_lat"] = TOLL_GATE_END_LAT;
+  payload["end_lon"] = TOLL_GATE_END_LON;
   payload["total_distance_km"] = totalDistanceKm;
   payload["timestamp"] = timestamp;
 

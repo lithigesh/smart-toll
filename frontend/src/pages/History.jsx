@@ -11,6 +11,14 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const formatCoordPair = (lat, lon) => {
+    const latNum = typeof lat === 'number' ? lat : parseFloat(lat);
+    const lonNum = typeof lon === 'number' ? lon : parseFloat(lon);
+
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return 'N/A';
+    return `${latNum.toFixed(4)}, ${lonNum.toFixed(4)}`;
+  };
+
   const fetchTransactionHistory = useCallback(async () => {
     try {
       setLoading(true);
@@ -282,12 +290,16 @@ const History = () => {
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Route</p>
-                          <p className="text-sm font-medium">
-                            {transaction.start_lat && transaction.start_lon 
-                              ? `${transaction.start_lat.toFixed(4)}, ${transaction.start_lon.toFixed(4)}`
-                              : 'N/A'
-                            }
-                          </p>
+                          <div className="text-sm font-medium flex flex-wrap items-center gap-x-8 gap-y-1">
+                            <span className="whitespace-nowrap">
+                              <span className="text-xs text-muted-foreground">Start:</span>{' '}
+                              {formatCoordPair(transaction.start_lat, transaction.start_lon)}
+                            </span>
+                            <span className="whitespace-nowrap">
+                              <span className="text-xs text-muted-foreground">End:</span>{' '}
+                              {formatCoordPair(transaction.end_lat, transaction.end_lon)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

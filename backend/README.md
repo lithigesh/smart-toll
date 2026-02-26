@@ -515,6 +515,8 @@ Get ESP32 toll transactions for authenticated user. **Requires Authentication**
       "device_id": "ESP32_DEVICE_001",
       "start_lat": 11.0168,
       "start_lon": 76.9558,
+      "end_lat": 11.0268,
+      "end_lon": 76.9658,
       "distance_km": 15.5,
       "toll_amount": 25.00,
       "status": "completed",
@@ -537,6 +539,8 @@ Process toll transaction from ESP32 device. **Public Endpoint**
   "device_id": "ESP32_DEVICE_001",
   "start_lat": 11.0168,
   "start_lon": 76.9558,
+  "end_lat": 11.0268,
+  "end_lon": 76.9658,
   "total_distance_km": 15.5,
   "timestamp": "2025-10-10T10:30:00Z"
 }
