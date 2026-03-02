@@ -29,6 +29,7 @@ export interface Vehicle {
   vehicle_type: string;
   vehicle_name?: string;
   rfid_tag?: string;
+  device_id?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -39,13 +40,16 @@ export interface Vehicle {
 export interface Transaction {
   id: string;
   user_id: string;
+  user_name?: string;
   vehicle_id: string;
+  device_id?: string;
   amount: number;
   type: 'toll' | 'toll_payment';
   status: 'pending' | 'completed' | 'failed';
   description?: string;
   toll_location?: string;
   distance_km?: number;
+  payment_method?: string;
   created_at: string;
   user?: User;
   vehicle?: Vehicle;
