@@ -41,17 +41,21 @@ export default function VehicleRatesPage() {
         return;
       }
 
-      const response = await fetch(API_ENDPOINTS.admin.vehicleTypes, {
+      const response = await fetch(API_ENDPOINTS.admin.vehicleRates, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch vehicle rates");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to fetch vehicle rates (${response.status})`
+        );
       }
 
       const data = await response.json();
+      console.log('Vehicle rates fetched:', data);
       setRates(data.vehicleTypes || data.data || data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load vehicle rates");
@@ -76,9 +80,27 @@ export default function VehicleRatesPage() {
 
   const saveRate = async (id: string) => {
     setSaving(true);
+    setError("");
     try {
       const token = localStorage.getItem("adminToken");
-      const response = await fetch(`${API_ENDPOINTS.admin.vehicleTypes}/${id}`, {
+      
+      // Validate input
+      if (editValue <= 0) {
+        setError("Rate must be greater than 0");
+        setSaving(false);
+        return;
+      }
+      
+      // If using local auth token, show error
+      if (token?.startsWith("local-admin-token-")) {
+        setError("Cannot update rates while using local auth - connect to backend");
+        setSaving(false);
+        return;
+      }
+
+      console.log(`Updating rate ${id} to ${editValue}`);
+      
+      const response = await fetch(`${API_ENDPOINTS.admin.vehicleRates}/${id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -88,8 +110,14 @@ export default function VehicleRatesPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update rate");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to update rate (${response.status})`
+        );
       }
+
+      const data = await response.json();
+      console.log('Rate updated successfully:', data);
 
       // Update local state
       setRates((prev) =>
@@ -98,8 +126,11 @@ export default function VehicleRatesPage() {
         )
       );
       setEditingId(null);
+      setError(""); // Clear any previous errors
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update rate");
+      const errorMessage = err instanceof Error ? err.message : "Failed to update rate";
+      setError(errorMessage);
+      console.error('Error updating rate:', err);
     } finally {
       setSaving(false);
     }

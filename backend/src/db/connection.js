@@ -21,6 +21,7 @@ const supabase = createClient(
 // Health check function
 const healthCheck = async () => {
   try {
+    // First, test basic connection with a simple query
     const { data, error } = await supabase
       .from('users')
       .select('id')
@@ -35,7 +36,13 @@ const healthCheck = async () => {
       };
     }
     
-    if (error) throw error;
+    if (error) {
+      // Check if it's a network error
+      if (error.message && error.message.includes('fetch')) {
+        throw new Error(`Network error connecting to Supabase: ${error.message}. Check your internet connection and SUPABASE_URL.`);
+      }
+      throw error;
+    }
     
     return { 
       status: 'healthy', 
@@ -46,7 +53,8 @@ const healthCheck = async () => {
     return { 
       status: 'unhealthy', 
       error: error.message,
-      connection: 'failed'
+      connection: 'failed',
+      hint: 'Tables may not exist. Run: npm run migrate or manually execute database/setup.sql in Supabase SQL Editor'
     };
   }
 };

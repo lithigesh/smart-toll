@@ -97,10 +97,57 @@ export default function UsersPage() {
   };
 
   const handleSaveUser = async (updatedUser: User) => {
-    // TODO: Implement API call to update user
-    console.log('Saving user:', updatedUser);
-    // Update local state
-    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    try {
+      const token = localStorage.getItem("adminToken");
+      
+      // Validate required fields
+      if (!updatedUser.name || !updatedUser.email) {
+        setError("Name and email are required");
+        return;
+      }
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(updatedUser.email)) {
+        setError("Please enter a valid email address");
+        return;
+      }
+      
+      // If using local auth token, show error
+      if (token?.startsWith("local-admin-token-")) {
+        setError("Cannot update user while using local auth - connect to backend");
+        return;
+      }
+
+      const response = await fetch(API_ENDPOINTS.admin.updateUser(updatedUser.id), {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: updatedUser.name,
+          email: updatedUser.email,
+          phone: updatedUser.phone,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update user');
+      }
+
+      // Update local state with the updated user
+      setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+      setIsDetailsDialogOpen(false);
+      
+      // Show success message
+      alert('User updated successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update user';
+      setError(errorMessage);
+      console.error('Error updating user:', error);
+    }
   };
 
   return (

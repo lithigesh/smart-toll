@@ -8,7 +8,9 @@ export const API_ENDPOINTS = {
     users: `${API_BASE_URL}/admin/search/users`,
     vehicles: `${API_BASE_URL}/admin/search/vehicles`,
     transactions: `${API_BASE_URL}/admin/search/transactions`,
-    vehicleRates: `${API_BASE_URL}/admin/vehicle-rates`,    vehicleTypes: `${API_BASE_URL}/admin/vehicle-types`,
+    vehicleRates: `${API_BASE_URL}/admin/vehicle-rates`,
+    vehicleTypes: `${API_BASE_URL}/admin/vehicle-types`,
+    updateUser: (userId: string) => `${API_BASE_URL}/admin/users/${userId}`,
   },
 };
 

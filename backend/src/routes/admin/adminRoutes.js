@@ -22,7 +22,22 @@ const authenticateAdmin = (req, res, next) => {
     req.admin = decoded;
     next();
   } catch (error) {
-    res.status(400).json({ message: 'Invalid token.', error: error.message });
+    // Provide more specific error messages for debugging
+    const errorMessage = error.name === 'TokenExpiredError' 
+      ? 'Token has expired. Please login again.'
+      : error.name === 'JsonWebTokenError'
+      ? 'Invalid token format. Please ensure you are using a valid JWT token from the /api/admin/login endpoint.'
+      : 'Invalid token.';
+    
+    console.error('Token verification error:', {
+      tokenPreview: token?.substring(0, 20) + '...',
+      error: error.message
+    });
+    
+    res.status(401).json({ 
+      message: errorMessage,
+      error: error.message 
+    });
   }
 };
 
@@ -431,15 +446,23 @@ router.get('/search/transactions', authenticateAdmin, async (req, res) => {
 router.get('/vehicle-rates', authenticateAdmin, async (req, res) => {
   try {
     const { data: rates, error } = await supabase
-      .from('vehicle_type_rates')
-      .select('*')
-      .order('vehicle_type', { ascending: true });
+      .from('vehicle_types')
+      .select('id, type_name, rate_per_km, created_at')
+      .order('type_name', { ascending: true });
 
     if (error) throw error;
 
+    // Map the data to match frontend expectations
+    const mappedRates = rates.map(rate => ({
+      id: rate.id.toString(),
+      vehicle_type: rate.type_name.toLowerCase(),
+      rate: parseFloat(rate.rate_per_km),
+      created_at: rate.created_at
+    }));
+
     res.json({
       success: true,
-      data: rates || []
+      data: mappedRates || []
     });
 
   } catch (error) {
@@ -457,8 +480,8 @@ router.get('/vehicle-rates/:id', authenticateAdmin, async (req, res) => {
     const { id } = req.params;
 
     const { data: rate, error } = await supabase
-      .from('vehicle_type_rates')
-      .select('*')
+      .from('vehicle_types')
+      .select('id, type_name, rate_per_km, created_at')
       .eq('id', id)
       .single();
 
@@ -469,9 +492,17 @@ router.get('/vehicle-rates/:id', authenticateAdmin, async (req, res) => {
       });
     }
 
+    // Map the data to match frontend expectations
+    const mappedRate = {
+      id: rate.id.toString(),
+      vehicle_type: rate.type_name.toLowerCase(),
+      rate: parseFloat(rate.rate_per_km),
+      created_at: rate.created_at
+    };
+
     res.json({
       success: true,
-      data: rate
+      data: mappedRate
     });
 
   } catch (error) {
@@ -486,25 +517,23 @@ router.get('/vehicle-rates/:id', authenticateAdmin, async (req, res) => {
 // Create new vehicle rate
 router.post('/vehicle-rates', authenticateAdmin, async (req, res) => {
   try {
-    const { vehicle_type, base_rate, per_km_rate, description } = req.body;
+    const { vehicle_type, rate } = req.body;
 
     // Validation
-    if (!vehicle_type || base_rate === undefined || per_km_rate === undefined) {
+    if (!vehicle_type || !rate || rate <= 0) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Vehicle type, base rate, and per km rate are required' 
+        message: 'Vehicle type and positive rate are required' 
       });
     }
 
-    const { data: rate, error } = await supabase
-      .from('vehicle_type_rates')
+    const { data: rateData, error } = await supabase
+      .from('vehicle_types')
       .insert({
-        vehicle_type,
-        base_rate: parseFloat(base_rate),
-        per_km_rate: parseFloat(per_km_rate),
-        description: description || null
+        type_name: vehicle_type,
+        rate_per_km: parseFloat(rate)
       })
-      .select()
+      .select('id, type_name as vehicle_type, rate_per_km as rate, created_at')
       .single();
 
     if (error) throw error;
@@ -512,7 +541,7 @@ router.post('/vehicle-rates', authenticateAdmin, async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Vehicle rate created successfully',
-      data: rate
+      data: rateData
     });
 
   } catch (error) {
@@ -528,42 +557,44 @@ router.post('/vehicle-rates', authenticateAdmin, async (req, res) => {
 router.put('/vehicle-rates/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { vehicle_type, base_rate, per_km_rate, description } = req.body;
+    const { rate } = req.body;
 
     // Validation
-    if (!vehicle_type && base_rate === undefined && per_km_rate === undefined) {
+    if (rate === undefined || rate <= 0) {
       return res.status(400).json({ 
         success: false, 
-        message: 'At least one field is required to update' 
+        message: 'Rate must be a positive number' 
       });
     }
 
-    const updateData = {};
-    if (vehicle_type) updateData.vehicle_type = vehicle_type;
-    if (base_rate !== undefined) updateData.base_rate = parseFloat(base_rate);
-    if (per_km_rate !== undefined) updateData.per_km_rate = parseFloat(per_km_rate);
-    if (description !== undefined) updateData.description = description;
-
-    const { data: rate, error } = await supabase
-      .from('vehicle_type_rates')
-      .update(updateData)
+    const { data: rateData, error } = await supabase
+      .from('vehicle_types')
+      .update({ rate_per_km: parseFloat(rate) })
       .eq('id', id)
-      .select()
+      .select('id, type_name, rate_per_km, created_at')
       .single();
 
     if (error) throw error;
 
-    if (!rate) {
+    if (!rateData) {
       return res.status(404).json({ 
         success: false, 
         message: 'Vehicle rate not found' 
       });
     }
 
+    // Map the data to match frontend expectations
+    const mappedRate = {
+      id: rateData.id.toString(),
+      vehicle_type: rateData.type_name.toLowerCase(),
+      rate: parseFloat(rateData.rate_per_km),
+      created_at: rateData.created_at
+    };
+
     res.json({
       success: true,
       message: 'Vehicle rate updated successfully',
-      data: rate
+      data: mappedRate
     });
 
   } catch (error) {
@@ -581,7 +612,7 @@ router.delete('/vehicle-rates/:id', authenticateAdmin, async (req, res) => {
     const { id } = req.params;
 
     const { error } = await supabase
-      .from('vehicle_type_rates')
+      .from('vehicle_types')
       .delete()
       .eq('id', id);
 
@@ -597,6 +628,158 @@ router.delete('/vehicle-rates/:id', authenticateAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to delete vehicle rate' 
+    });
+  }
+});
+
+// Get all vehicle types with rates (alias for vehicle-rates)
+router.get('/vehicle-types', authenticateAdmin, async (req, res) => {
+  try {
+    const { data: rates, error } = await supabase
+      .from('vehicle_types')
+      .select('id, type_name, rate_per_km, created_at')
+      .order('type_name', { ascending: true });
+
+    if (error) throw error;
+
+    // Map the data to match frontend expectations
+    const mappedRates = rates.map(rate => ({
+      id: rate.id.toString(),
+      vehicle_type: rate.type_name.toLowerCase(),
+      rate: parseFloat(rate.rate_per_km),
+      created_at: rate.created_at
+    }));
+
+    res.json({
+      success: true,
+      vehicleTypes: mappedRates || [],
+      data: mappedRates || []
+    });
+
+  } catch (error) {
+    console.error('Get vehicle types error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch vehicle types' 
+    });
+  }
+});
+
+// Update vehicle type rate
+router.put('/vehicle-types/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rate } = req.body;
+
+    if (!rate || rate <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rate must be a positive number'
+      });
+    }
+
+    const { data: updatedRate, error } = await supabase
+      .from('vehicle_types')
+      .update({
+        rate_per_km: Number(rate)
+      })
+      .eq('id', id)
+      .select('id, type_name, rate_per_km, created_at')
+      .single();
+
+    if (error) {
+      console.error('Update vehicle rate error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update vehicle rate',
+        error: error.message
+      });
+    }
+
+    if (!updatedRate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle rate not found'
+      });
+    }
+
+    // Map the data to match frontend expectations
+    const mappedRate = {
+      id: updatedRate.id.toString(),
+      vehicle_type: updatedRate.type_name.toLowerCase(),
+      rate: parseFloat(updatedRate.rate_per_km),
+      created_at: updatedRate.created_at
+    };
+
+    res.json({
+      success: true,
+      message: 'Vehicle rate updated successfully',
+      data: mappedRate
+    });
+
+  } catch (error) {
+    console.error('Update vehicle rate error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update vehicle rate'
+    });
+  }
+});
+
+// Update user details
+router.put('/users/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone } = req.body;
+
+    // Validate required fields
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and email are required'
+      });
+    }
+
+    // Update user in database
+    const { data: updatedUser, error } = await supabase
+      .from('users')
+      .update({
+        name,
+        email,
+        phone,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('User update error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update user',
+        error: error.message
+      });
+    }
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'User updated successfully',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error('User update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user'
     });
   }
 });

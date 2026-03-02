@@ -29,6 +29,14 @@ export function VehicleTransactionsDialog({ vehicle, isOpen, onClose }: VehicleT
     setLoading(true);
     try {
       const token = localStorage.getItem("adminToken");
+      
+      // If using local auth token, show empty data
+      if (token?.startsWith("local-admin-token-")) {
+        setTransactions([]);
+        setLoading(false);
+        return;
+      }
+
       // Filter by vehicle_id to get only this vehicle's transactions
       const response = await fetch(`${API_ENDPOINTS.admin.transactions}?vehicle_id=${vehicle?.id}&limit=100`, {
         headers: {

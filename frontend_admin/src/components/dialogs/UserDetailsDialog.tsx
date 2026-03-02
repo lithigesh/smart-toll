@@ -22,6 +22,7 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
   const [editedUser, setEditedUser] = useState<User | null>(user);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Update editedUser when user prop changes
   const displayUser = isEditing ? editedUser : user;
@@ -37,6 +38,14 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
     setLoadingVehicles(true);
     try {
       const token = localStorage.getItem("adminToken");
+      
+      // If using local auth token, show empty data
+      if (token?.startsWith("local-admin-token-")) {
+        setVehicles([]);
+        setLoadingVehicles(false);
+        return;
+      }
+
       const response = await fetch(`${API_ENDPOINTS.admin.vehicles}?user_id=${user?.id}&limit=100`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -69,11 +78,14 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
   const handleSave = async () => {
     if (editedUser && onSave) {
       setIsSaving(true);
+      setSaveError(null);
       try {
         await onSave(editedUser);
         setIsEditing(false);
         setEditedUser(null);
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to save user';
+        setSaveError(errorMessage);
         console.error('Failed to save user:', error);
       } finally {
         setIsSaving(false);
@@ -101,6 +113,14 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
         </CardHeader>
 
         <CardContent className="space-y-6 flex-1">
+          {/* Error Message */}
+          {saveError && (
+            <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              {saveError}
+            </div>
+          )}
+
           {/* User Avatar & Basic Info */}
           <div className="flex items-start gap-4">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl flex-shrink-0">
@@ -240,7 +260,11 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
                 <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
+                <Button 
+                  onClick={handleSave} 
+                  disabled={isSaving || !editedUser?.name || !editedUser?.email}
+                  title={!editedUser?.name || !editedUser?.email ? "Name and email are required" : ""}
+                >
                   {isSaving ? "Saving..." : "Save Changes"}
                 </Button>
               </>

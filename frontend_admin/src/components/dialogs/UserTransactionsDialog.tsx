@@ -29,6 +29,14 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
     setLoading(true);
     try {
       const token = localStorage.getItem("adminToken");
+      
+      // If using local auth token, show empty data
+      if (token?.startsWith("local-admin-token-")) {
+        setTransactions([]);
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(`${API_ENDPOINTS.admin.transactions}?user_id=${user?.id}&limit=100`, {
         headers: {
           Authorization: `Bearer ${token}`,
