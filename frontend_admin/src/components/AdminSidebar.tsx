@@ -70,31 +70,32 @@ export function AdminSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-4 py-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
             <Shield className="h-4 w-4" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">Smart Toll</span>
-            <span className="text-xs text-muted-foreground">Admin Panel</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-bold tracking-tight">Smart Toll</span>
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Admin Panel</span>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2 py-4">
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname === item.href}
                     tooltip={item.title}
+                    className="text-base h-11 rounded-lg px-3 gap-3 transition-all duration-150 hover:bg-sidebar-accent"
                   >
                     <Link href={item.href}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <item.icon className="h-5 w-5 shrink-0" />
+                      <span className="font-medium">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -104,27 +105,30 @@ export function AdminSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-sidebar-border px-2 py-3">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton className="w-full">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">
+                <SidebarMenuButton className="w-full h-12 rounded-lg px-3 gap-3 text-base hover:bg-sidebar-accent transition-all duration-150">
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarFallback className="text-sm font-semibold bg-primary text-primary-foreground">
                       {admin?.username?.charAt(0).toUpperCase() || "A"}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="truncate">{admin?.username || "Admin"}</span>
-                  <ChevronDown className="ml-auto h-4 w-4" />
+                  <div className="flex flex-col items-start min-w-0">
+                    <span className="truncate text-sm font-semibold leading-tight">{admin?.username || "Admin"}</span>
+                    <span className="text-xs text-muted-foreground leading-tight">Administrator</span>
+                  </div>
+                  <ChevronDown className="ml-auto h-5 w-5 shrink-0 text-muted-foreground" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 side="top"
-                className="w-[--radix-dropdown-menu-trigger-width]"
+                className="w-[--radix-dropdown-menu-trigger-width] p-1"
               >
-                <DropdownMenuItem onClick={logout} className="text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
+                <DropdownMenuItem onClick={logout} className="text-destructive text-base h-10 gap-2 rounded-md cursor-pointer">
+                  <LogOut className="h-5 w-5" />
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
