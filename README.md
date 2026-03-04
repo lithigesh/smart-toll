@@ -8,8 +8,17 @@ This system is designed to reduce congestion, eliminate manual toll booths, and 
 
 ## Project Deployment
 
-- **Frontend**: [View Live Site](https://smart-toll.vercel.app/) – Deployed on **Vercel** for a responsive and user-friendly web interface.  
-- **Backend API**: [View API](https://smart-toll-api.vercel.app/) – Hosted on **Vercel Serverless Functions**, providing secure endpoints for toll processing, wallet management, and transaction logging.
+- **Smart Toll System – User Portal**  
+  [View Live Site](https://smart-toll.vercel.app/)  
+  Deployed on **Vercel** to provide a responsive interface for users to view toll zones, wallet balance, and transaction history.
+
+- **Smart Toll System – Admin Dashboard**  
+  [View Admin Panel](https://smart-toll-admin.vercel.app/)  
+  Deployed on **Vercel** for administrators to configure toll zones, monitor vehicles, and manage system operations.
+
+- **Smart Toll System – Backend API Server**  
+  [View API Service](https://smart-toll-api.vercel.app/)  
+  Hosted on **Vercel Serverless Functions**, providing secure endpoints for toll processing, wallet management, and transaction logging.
 
 ---
 
