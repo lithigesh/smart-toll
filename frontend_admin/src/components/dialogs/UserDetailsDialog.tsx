@@ -126,7 +126,7 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-3xl max-h-[80vh] flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b flex-shrink-0">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b shrink-0">
           <div>
             <CardTitle>User Details</CardTitle>
             <CardDescription>View and manage user information</CardDescription>
@@ -147,7 +147,7 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
 
           {/* User Avatar & Basic Info */}
           <div className="flex items-start gap-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl flex-shrink-0">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl shrink-0">
               {displayUser?.name?.charAt(0).toUpperCase() || "U"}
             </div>
             <div>
@@ -273,7 +273,7 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
           </div>
         </CardContent>
 
-        <div className="border-t flex gap-2 justify-end p-4 flex-shrink-0 bg-background">
+        <div className="border-t flex gap-2 justify-end p-4 shrink-0 bg-background">
           {!isEditing ? (
             <>
               <Button variant="outline" onClick={onClose}>

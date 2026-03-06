@@ -105,7 +105,7 @@ export function VehicleDetailsDialog({
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b flex-shrink-0">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b shrink-0">
           <div>
             <CardTitle>Vehicle Details</CardTitle>
             <CardDescription>View and manage vehicle information</CardDescription>
@@ -126,7 +126,7 @@ export function VehicleDetailsDialog({
 
           {/* Vehicle Info Header */}
           <div className="flex items-start gap-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl flex-shrink-0">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl shrink-0">
               <Car className="h-8 w-8" />
             </div>
             <div className="flex-1">
@@ -223,7 +223,7 @@ export function VehicleDetailsDialog({
           </div>
         </CardContent>
 
-        <div className="border-t flex gap-2 justify-end p-4 flex-shrink-0 bg-background">
+        <div className="border-t flex gap-2 justify-end p-4 shrink-0 bg-background">
           {!isEditing ? (
             <>
               <Button variant="outline" onClick={onClose}>

@@ -28,7 +28,7 @@ export function TransactionDetailsDialog({ transaction, isOpen, onClose }: Trans
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b flex-shrink-0">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b shrink-0">
           <div>
             <CardTitle>Transaction Details</CardTitle>
             <CardDescription>View transaction information</CardDescription>
@@ -135,7 +135,7 @@ export function TransactionDetailsDialog({ transaction, isOpen, onClose }: Trans
           </div>
         </CardContent>
 
-        <div className="border-t flex gap-2 justify-end p-4 flex-shrink-0 bg-background">
+        <div className="border-t flex gap-2 justify-end p-4 shrink-0 bg-background">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>

@@ -72,7 +72,7 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-4xl max-h-[80vh] flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b flex-shrink-0">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b shrink-0">
           <div>
             <CardTitle>User Transactions</CardTitle>
             <CardDescription>
@@ -142,7 +142,7 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="h-10 w-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
                         <Car className="h-5 w-5" />
                       </div>
                       <div className="flex-1">
@@ -166,7 +166,7 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
                         </div>
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="text-right shrink-0">
                       <p className="text-lg font-bold text-orange-600 mb-2">
                         ₹{transaction.amount}
                       </p>
@@ -181,7 +181,7 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
           )}
         </CardContent>
 
-        <div className="border-t flex gap-2 justify-end p-4 flex-shrink-0 bg-background">
+        <div className="border-t flex gap-2 justify-end p-4 shrink-0 bg-background">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>

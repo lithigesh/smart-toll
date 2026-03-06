@@ -60,7 +60,7 @@ export function PasswordVerificationDialog({
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
             )}
