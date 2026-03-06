@@ -236,7 +236,7 @@ export default function VehiclesPage() {
             <div>
               <CardTitle>All Vehicles</CardTitle>
               <CardDescription>
-                {vehicles.length} total vehicles registered
+                {!searchParams.get('vehicleId') && `${vehicles.length} total vehicles registered`}
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-64">
