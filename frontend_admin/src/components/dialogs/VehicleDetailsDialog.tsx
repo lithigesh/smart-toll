@@ -262,13 +262,20 @@ export function VehicleDetailsDialog({
                   isSaving ||
                   !editedVehicle?.vehicle_number ||
                   !editedVehicle?.vehicle_type ||
-                  !editedVehicle?.device_id
+                  !editedVehicle?.device_id ||
+                  (editedVehicle?.vehicle_number === vehicle?.vehicle_number &&
+                   editedVehicle?.vehicle_type === vehicle?.vehicle_type &&
+                   editedVehicle?.device_id === vehicle?.device_id)
                 }
                 title={
                   !editedVehicle?.vehicle_number ||
                   !editedVehicle?.vehicle_type ||
                   !editedVehicle?.device_id
                     ? "All fields are required"
+                    : editedVehicle?.vehicle_number === vehicle?.vehicle_number &&
+                      editedVehicle?.vehicle_type === vehicle?.vehicle_type &&
+                      editedVehicle?.device_id === vehicle?.device_id
+                    ? "No changes made"
                     : ""
                 }
               >

@@ -141,9 +141,6 @@ export default function UsersPage() {
       // Update local state with the updated user
       setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
       setIsDetailsDialogOpen(false);
-      
-      // Show success message
-      alert('User updated successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update user';
       setError(errorMessage);

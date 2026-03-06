@@ -290,8 +290,23 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
               </Button>
               <Button 
                 onClick={handleSaveClick} 
-                disabled={isSaving || !editedUser?.name || !editedUser?.email}
-                title={!editedUser?.name || !editedUser?.email ? "Name and email are required" : ""}
+                disabled={
+                  isSaving || 
+                  !editedUser?.name || 
+                  !editedUser?.email ||
+                  (editedUser?.name === user?.name && 
+                   editedUser?.email === user?.email && 
+                   editedUser?.phone === user?.phone)
+                }
+                title={
+                  !editedUser?.name || !editedUser?.email 
+                    ? "Name and email are required" 
+                    : editedUser?.name === user?.name && 
+                      editedUser?.email === user?.email && 
+                      editedUser?.phone === user?.phone
+                    ? "No changes made"
+                    : ""
+                }
               >
                 {isSaving ? "Saving..." : "Save Changes"}
               </Button>
