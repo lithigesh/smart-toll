@@ -71,8 +71,8 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl max-h-[80vh] overflow-y-auto flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-4 sticky top-0 bg-background z-10">
+      <Card className="w-full max-w-4xl max-h-[80vh] flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b flex-shrink-0">
           <div>
             <CardTitle>User Transactions</CardTitle>
             <CardDescription>
@@ -84,7 +84,7 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
           </Button>
         </CardHeader>
 
-        <CardContent className="space-y-6 flex-1">
+        <CardContent className="space-y-6 flex-1 overflow-y-auto">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border">
@@ -134,7 +134,7 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
               <p className="text-sm text-muted-foreground">No transactions found</p>
             </div>
           ) : (
-            <div className="space-y-2 max-h-80 overflow-y-auto">
+            <div className="space-y-2">
               {transactions.map((transaction) => (
                 <div
                   key={transaction.id}
@@ -179,14 +179,13 @@ export function UserTransactionsDialog({ user, isOpen, onClose }: UserTransactio
               ))}
             </div>
           )}
-
-          {/* Close Button */}
-          <div className="flex gap-2 justify-end pt-4 border-t sticky bottom-0 bg-background">
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </div>
         </CardContent>
+
+        <div className="border-t flex gap-2 justify-end p-4 flex-shrink-0 bg-background">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       </Card>
     </div>
   );

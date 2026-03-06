@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, MoreHorizontal, Car, Calendar } from "lucide-react";
 import {
   Table,
@@ -23,14 +24,18 @@ import {
 import { API_ENDPOINTS } from "@/config/api";
 import { Vehicle } from "@/types";
 import { UserDetailsDialog } from "@/components/dialogs/UserDetailsDialog";
+import { VehicleDetailsDialog } from "@/components/dialogs/VehicleDetailsDialog";
 
 export default function VehiclesPage() {
+  const searchParams = useSearchParams();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [isOwnerDetailsOpen, setIsOwnerDetailsOpen] = useState(false);
+  const [isVehicleDetailsOpen, setIsVehicleDetailsOpen] = useState(false);
 
   const fetchVehicles = useCallback(async () => {
     try {
@@ -44,7 +49,13 @@ export default function VehiclesPage() {
         return;
       }
 
-      const response = await fetch(API_ENDPOINTS.admin.vehicles + "?limit=1000", {
+      // Get vehicleId from query params if present
+      const vehicleId = searchParams.get('vehicleId');
+      const apiUrl = vehicleId 
+        ? `${API_ENDPOINTS.admin.vehicles}?vehicle_id=${vehicleId}&limit=1`
+        : `${API_ENDPOINTS.admin.vehicles}?limit=1000`;
+
+      const response = await fetch(apiUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -61,16 +72,119 @@ export default function VehiclesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     fetchVehicles();
   }, [fetchVehicles]);
 
+  // Check if a vehicle should be auto-opened
+  useEffect(() => {
+    if (!loading && vehicles.length > 0) {
+      const vehicleId = searchParams.get('vehicleId');
+      
+      if (vehicleId) {
+        // Find the vehicle in the loaded list
+        const vehicle = vehicles.find(v => v.id === vehicleId);
+        if (vehicle) {
+          setSelectedVehicle(vehicle);
+          setIsVehicleDetailsOpen(true);
+        }
+      }
+    }
+  }, [loading, vehicles, searchParams]);
+
   const handleViewOwner = (vehicle: Vehicle) => {
     if (vehicle.user) {
       setSelectedUser(vehicle.user);
       setIsOwnerDetailsOpen(true);
+    }
+  };
+
+  const handleViewVehicleDetails = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setIsVehicleDetailsOpen(true);
+  };
+
+  const handleSaveVehicle = async (updatedVehicle: Vehicle, adminPassword: string) => {
+    try {
+      const token = localStorage.getItem("adminToken");
+
+      if (!updatedVehicle.vehicle_number || !updatedVehicle.vehicle_type || !updatedVehicle.device_id) {
+        throw new Error("All fields are required");
+      }
+
+      if (token?.startsWith("local-admin-token-")) {
+        throw new Error("Cannot update vehicle while using local auth - connect to backend");
+      }
+
+      const response = await fetch(`${API_ENDPOINTS.admin.vehicles}/${updatedVehicle.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          vehicle_number: updatedVehicle.vehicle_number,
+          vehicle_type: updatedVehicle.vehicle_type,
+          device_id: updatedVehicle.device_id,
+          adminPassword: adminPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update vehicle");
+      }
+
+      // Update local state
+      setVehicles(vehicles.map(v => v.id === updatedVehicle.id ? updatedVehicle : v));
+      setIsVehicleDetailsOpen(false);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to update vehicle";
+      throw new Error(errorMessage);
+    }
+  };
+
+  const handleVehicleStatusChange = async (vehicleId: string, isActive: boolean, adminPassword: string) => {
+    try {
+      const token = localStorage.getItem("adminToken");
+
+      if (token?.startsWith("local-admin-token-")) {
+        throw new Error("Cannot update vehicle status while using local auth - connect to backend");
+      }
+
+      const response = await fetch(`${API_ENDPOINTS.admin.vehicles}/${vehicleId}/status`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          is_active: isActive,
+          adminPassword: adminPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update vehicle status");
+      }
+
+      const data = await response.json();
+      setVehicles(
+        vehicles.map(v =>
+          v.id === vehicleId ? { ...v, is_active: isActive } : v
+        )
+      );
+
+      // Update selected vehicle if it's the one being modified
+      if (selectedVehicle?.id === vehicleId) {
+        setSelectedVehicle({ ...selectedVehicle, is_active: isActive });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to change vehicle status";
+      throw new Error(errorMessage);
     }
   };
 
@@ -204,11 +318,11 @@ export default function VehiclesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewVehicleDetails(vehicle)}>
+                              View & Edit Details
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleViewOwner(vehicle)}>
                               View Owner
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              Deactivate
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -226,6 +340,14 @@ export default function VehiclesPage() {
         user={selectedUser}
         isOpen={isOwnerDetailsOpen}
         onClose={() => setIsOwnerDetailsOpen(false)}
+      />
+
+      <VehicleDetailsDialog
+        vehicle={selectedVehicle}
+        isOpen={isVehicleDetailsOpen}
+        onClose={() => setIsVehicleDetailsOpen(false)}
+        onSave={handleSaveVehicle}
+        onStatusChange={handleVehicleStatusChange}
       />
     </div>
   );

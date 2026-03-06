@@ -96,7 +96,7 @@ export default function UsersPage() {
     setIsTransactionsDialogOpen(true);
   };
 
-  const handleSaveUser = async (updatedUser: User) => {
+  const handleSaveUser = async (updatedUser: User, adminPassword: string) => {
     try {
       const token = localStorage.getItem("adminToken");
       
@@ -129,6 +129,7 @@ export default function UsersPage() {
           name: updatedUser.name,
           email: updatedUser.email,
           phone: updatedUser.phone,
+          adminPassword: adminPassword,
         }),
       });
 

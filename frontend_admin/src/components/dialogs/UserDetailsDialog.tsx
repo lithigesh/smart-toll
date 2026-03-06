@@ -1,31 +1,42 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { User, Vehicle } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Phone, Calendar, X, Car, AlertCircle } from "lucide-react";
+import { Mail, Phone, Calendar, X, Car, AlertCircle, ExternalLink } from "lucide-react";
 import { API_ENDPOINTS } from "@/config/api";
+import { PasswordVerificationDialog } from "./PasswordVerificationDialog";
 
 interface UserDetailsDialogProps {
   user: User | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave?: (updatedUser: User) => Promise<void>;
+  onSave?: (updatedUser: User, password: string) => Promise<void>;
 }
 
 export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetailsDialogProps) {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editedUser, setEditedUser] = useState<User | null>(user);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isPasswordVerificationOpen, setIsPasswordVerificationOpen] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Update editedUser when user prop changes
   const displayUser = isEditing ? editedUser : user;
+
+  // Sync editedUser with the user prop when it changes
+  useEffect(() => {
+    setEditedUser(user);
+  }, [user]);
 
   // Fetch user's vehicles when dialog opens
   useEffect(() => {
@@ -65,6 +76,12 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
 
   if (!isOpen || !user) return null;
 
+  const handleVehicleClick = (vehicle: Vehicle) => {
+    // Navigate to vehicles page with vehicle ID filter parameter
+    onClose();
+    router.push(`/dashboard/vehicles?vehicleId=${vehicle.id}`);
+  };
+
   const handleEdit = () => {
     setEditedUser(user);
     setIsEditing(true);
@@ -75,20 +92,27 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
     setEditedUser(null);
   };
 
-  const handleSave = async () => {
+  const handleSaveClick = async () => {
+    // Show password verification dialog instead of saving directly
+    setVerificationError(null);
+    setIsPasswordVerificationOpen(true);
+  };
+
+  const handlePasswordVerify = async (password: string) => {
     if (editedUser && onSave) {
-      setIsSaving(true);
-      setSaveError(null);
+      setIsVerifying(true);
+      setVerificationError(null);
       try {
-        await onSave(editedUser);
+        await onSave(editedUser, password);
         setIsEditing(false);
         setEditedUser(null);
+        setIsPasswordVerificationOpen(false);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to save user';
-        setSaveError(errorMessage);
+        setVerificationError(errorMessage);
         console.error('Failed to save user:', error);
       } finally {
-        setIsSaving(false);
+        setIsVerifying(false);
       }
     }
   };
@@ -101,8 +125,8 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-3xl max-h-[80vh] overflow-y-auto flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between pb-4 sticky top-0 bg-background z-10">
+      <Card className="w-full max-w-3xl max-h-[80vh] flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b flex-shrink-0">
           <div>
             <CardTitle>User Details</CardTitle>
             <CardDescription>View and manage user information</CardDescription>
@@ -112,7 +136,7 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
           </Button>
         </CardHeader>
 
-        <CardContent className="space-y-6 flex-1">
+        <CardContent className="space-y-6 flex-1 overflow-y-auto">
           {/* Error Message */}
           {saveError && (
             <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm flex items-center gap-2">
@@ -222,7 +246,8 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
                 {vehicles.map((vehicle) => (
                   <div
                     key={vehicle.id}
-                    className="p-3 border rounded-md hover:bg-muted/50 transition"
+                    onClick={() => handleVehicleClick(vehicle)}
+                    className="p-3 border rounded-md hover:bg-muted/50 transition cursor-pointer hover:border-primary/50"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -234,44 +259,58 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave }: UserDetails
                           <p className="text-xs text-muted-foreground">{vehicle.vehicle_type}</p>
                         </div>
                       </div>
-                      <Badge variant={vehicle.is_active ? "default" : "secondary"}>
-                        {vehicle.is_active ? "Active" : "Inactive"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={vehicle.is_active ? "default" : "secondary"}>
+                          {vehicle.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                        <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 justify-end pt-4 border-t sticky bottom-0 bg-background">
-            {!isEditing ? (
-              <>
-                <Button variant="outline" onClick={onClose}>
-                  Close
-                </Button>
-                <Button onClick={handleEdit}>
-                  Edit Details
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleSave} 
-                  disabled={isSaving || !editedUser?.name || !editedUser?.email}
-                  title={!editedUser?.name || !editedUser?.email ? "Name and email are required" : ""}
-                >
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
-              </>
-            )}
-          </div>
         </CardContent>
+
+        <div className="border-t flex gap-2 justify-end p-4 flex-shrink-0 bg-background">
+          {!isEditing ? (
+            <>
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+              <Button onClick={handleEdit}>
+                Edit Details
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveClick} 
+                disabled={isSaving || !editedUser?.name || !editedUser?.email}
+                title={!editedUser?.name || !editedUser?.email ? "Name and email are required" : ""}
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </>
+          )}
+        </div>
       </Card>
+
+      {/* Password Verification Dialog */}
+      <PasswordVerificationDialog
+        isOpen={isPasswordVerificationOpen}
+        onClose={() => {
+          setIsPasswordVerificationOpen(false);
+          setVerificationError(null);
+        }}
+        onVerify={handlePasswordVerify}
+        isLoading={isVerifying}
+        error={verificationError}
+      />
     </div>
   );
 }

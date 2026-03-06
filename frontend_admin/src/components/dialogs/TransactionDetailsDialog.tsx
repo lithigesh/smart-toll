@@ -27,8 +27,8 @@ export function TransactionDetailsDialog({ transaction, isOpen, onClose }: Trans
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-96 overflow-y-auto">
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
+      <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b flex-shrink-0">
           <div>
             <CardTitle>Transaction Details</CardTitle>
             <CardDescription>View transaction information</CardDescription>
@@ -38,7 +38,7 @@ export function TransactionDetailsDialog({ transaction, isOpen, onClose }: Trans
           </Button>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 flex-1 overflow-y-auto">
           {/* Transaction Header */}
           <div className="flex items-start justify-between">
             <div>
@@ -133,17 +133,16 @@ export function TransactionDetailsDialog({ transaction, isOpen, onClose }: Trans
               </div>
             </div>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 justify-end pt-4 border-t">
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-            <Button>
-              Download Receipt
-            </Button>
-          </div>
         </CardContent>
+
+        <div className="border-t flex gap-2 justify-end p-4 flex-shrink-0 bg-background">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button>
+            Download Receipt
+          </Button>
+        </div>
       </Card>
     </div>
   );

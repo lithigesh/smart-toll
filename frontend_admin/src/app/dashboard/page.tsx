@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Users, Car, Receipt, IndianRupee } from "lucide-react";
+import { Users, Car, Receipt, IndianRupee, MapPin, Calendar } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { API_ENDPOINTS } from "@/config/api";
 import { Analytics, Transaction } from "@/types";
 
@@ -147,42 +146,49 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Toll Deductions</CardTitle>
-          <CardDescription>Latest toll transactions from vehicles</CardDescription>
+          <CardDescription>Last 5 completed toll transactions</CardDescription>
         </CardHeader>
         <CardContent>
           {analytics?.recentTransactions && analytics.recentTransactions.length > 0 ? (
             <div className="space-y-4">
-              {analytics.recentTransactions.map((transaction: Transaction) => (
+              {analytics.recentTransactions
+                .filter(t => t.status === 'completed')
+                .slice(0, 5)
+                .map((transaction: Transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
+                  className="flex items-center justify-between p-4 border rounded-md hover:bg-muted/50 transition"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center bg-orange-100 text-orange-600">
-                      <Receipt className="h-5 w-5" />
+                  <div className="flex items-start gap-3 w-1/4 pl-8">
+                    <div className="h-10 w-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                      <Car className="h-5 w-5" />
                     </div>
-                    <div>
-                      <p className="font-medium">
-                        {transaction.description || transaction.toll_location || "Toll Deduction"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(transaction.created_at).toLocaleString()}
-                      </p>
+                    <div className="flex-1">
+                      <p className="font-semibold font-mono">{transaction.vehicle?.vehicle_number || "Unknown"}</p>
+                      <p className="text-sm text-muted-foreground">{transaction.vehicle?.vehicle_type || ""}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-orange-600">
-                      -₹{transaction.amount}
+                  
+                  <div className="flex items-center justify-between w-3/4 ml-12">
+                    <div className="flex items-center gap-2 text-sm w-1/4">
+                      <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span>{transaction.toll_location || "Toll Zone"}</span>
+                    </div>
+                    
+                    <p className="font-semibold text-orange-600 text-lg w-1/4 text-center">
+                      ₹{transaction.amount}
                     </p>
-                    <Badge variant={transaction.status === "completed" ? "default" : "secondary"}>
-                      {transaction.status}
-                    </Badge>
+                    
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground w-2/4 justify-end pr-24">
+                      <Calendar className="h-4 w-4 flex-shrink-0" />
+                      <span>{new Date(transaction.created_at).toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">
+            <p className="text-muted-foreground text-center py-6 text-sm">
               No recent transactions
             </p>
           )}

@@ -121,6 +121,30 @@ router.get('/analytics', authenticateAdmin, async (req, res) => {
       totalRevenue = revenueData.reduce((sum, transaction) => sum + (transaction.toll_amount || 0), 0);
     }
 
+    // Get recent transactions (last 5)
+    const { data: recentTransactions, error: recentTransError } = await supabase
+      .from('esp32_toll_transactions')
+      .select(`
+        *,
+        vehicles (
+          id,
+          vehicle_number,
+          vehicle_type,
+          user_id,
+          users (
+            id,
+            name,
+            email
+          )
+        )
+      `)
+      .order('processed_at', { ascending: false })
+      .limit(5);
+
+    if (recentTransError) {
+      console.error('Error fetching recent transactions:', recentTransError);
+    }
+
     // Check for any database errors
     if (usersError || vehiclesError || transactionsError) {
       console.error('Database errors:', { usersError, vehiclesError, transactionsError });
@@ -131,11 +155,32 @@ router.get('/analytics', authenticateAdmin, async (req, res) => {
       });
     }
 
+    // Map recent transactions to frontend format
+    const formattedTransactions = (recentTransactions || []).map(t => ({
+      id: t.id,
+      amount: t.toll_amount,
+      created_at: t.processed_at,
+      toll_location: 'Toll Zone',
+      device_id: t.device_id,
+      status: 'completed',
+      vehicle: t.vehicles ? {
+        id: t.vehicles.id,
+        vehicle_number: t.vehicles.vehicle_number,
+        vehicle_type: t.vehicles.vehicle_type,
+        user: t.vehicles.users ? {
+          id: t.vehicles.users.id,
+          name: t.vehicles.users.name,
+          email: t.vehicles.users.email
+        } : null
+      } : null
+    }));
+
     const response = {
       users: totalUsers || 0,
       vehicles: totalVehicles || 0,
       transactions: totalTransactions || 0,
-      revenue: totalRevenue || 0
+      revenue: totalRevenue || 0,
+      recentTransactions: formattedTransactions
     };
     
     res.json(response);
@@ -257,7 +302,7 @@ router.get('/users/:id', authenticateAdmin, async (req, res) => {
 // Search vehicles
 router.get('/search/vehicles', authenticateAdmin, async (req, res) => {
   try {
-    const { search = '', page = 1, limit = 10, user_id } = req.query;
+    const { search = '', page = 1, limit = 10, user_id, vehicle_id } = req.query;
     const offset = (page - 1) * limit;
 
     let query = supabase
@@ -281,6 +326,11 @@ router.get('/search/vehicles', authenticateAdmin, async (req, res) => {
       `)
       .order('created_at', { ascending: false });
 
+    // Filter by vehicle_id if provided (for viewing specific vehicle)
+    if (vehicle_id) {
+      query = query.eq('id', vehicle_id);
+    }
+
     // Filter by user_id if provided
     if (user_id) {
       query = query.eq('user_id', user_id);
@@ -293,6 +343,9 @@ router.get('/search/vehicles', authenticateAdmin, async (req, res) => {
 
     // Get total count for pagination
     const countQuery = supabase.from('vehicles').select('*', { count: 'exact', head: true });
+    if (vehicle_id) {
+      countQuery.eq('id', vehicle_id);
+    }
     if (user_id) {
       countQuery.eq('user_id', user_id);
     }
@@ -730,13 +783,29 @@ router.put('/vehicle-types/:id', authenticateAdmin, async (req, res) => {
 router.put('/users/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone } = req.body;
+    const { name, email, phone, adminPassword } = req.body;
 
     // Validate required fields
     if (!name || !email) {
       return res.status(400).json({
         success: false,
         message: 'Name and email are required'
+      });
+    }
+
+    // Verify admin password for security
+    if (!adminPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin password is required to update user details'
+      });
+    }
+
+    const storedAdminPassword = process.env.ADMIN_PASSWORD;
+    if (adminPassword !== storedAdminPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin password'
       });
     }
 
@@ -780,6 +849,152 @@ router.put('/users/:id', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update user'
+    });
+  }
+});
+
+// Update vehicle details
+router.put('/search/vehicles/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { vehicle_number, vehicle_type, device_id, adminPassword } = req.body;
+
+    // Validate required fields
+    if (!vehicle_number || !vehicle_type || !device_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vehicle number, type, and device ID are required'
+      });
+    }
+
+    // Verify admin password for security
+    if (!adminPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin password is required to update vehicle details'
+      });
+    }
+
+    const storedAdminPassword = process.env.ADMIN_PASSWORD;
+    if (adminPassword !== storedAdminPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin password'
+      });
+    }
+
+    // Update vehicle in database
+    const { data: updatedVehicle, error } = await supabase
+      .from('vehicles')
+      .update({
+        vehicle_number,
+        vehicle_type,
+        device_id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Vehicle update error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update vehicle',
+        error: error.message
+      });
+    }
+
+    if (!updatedVehicle) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Vehicle updated successfully',
+      vehicle: updatedVehicle
+    });
+
+  } catch (error) {
+    console.error('Vehicle update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update vehicle'
+    });
+  }
+});
+
+// Update vehicle status (activate/deactivate)
+router.patch('/search/vehicles/:id/status', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_active, adminPassword } = req.body;
+
+    // Verify that is_active is a boolean
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'is_active must be a boolean value'
+      });
+    }
+
+    // Verify admin password for security
+    if (!adminPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin password is required to change vehicle status'
+      });
+    }
+
+    const storedAdminPassword = process.env.ADMIN_PASSWORD;
+    if (adminPassword !== storedAdminPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin password'
+      });
+    }
+
+    // Update vehicle status in database
+    const { data: updatedVehicle, error } = await supabase
+      .from('vehicles')
+      .update({
+        is_active,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Vehicle status update error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update vehicle status',
+        error: error.message
+      });
+    }
+
+    if (!updatedVehicle) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Vehicle ${is_active ? 'activated' : 'deactivated'} successfully`,
+      vehicle: updatedVehicle
+    });
+
+  } catch (error) {
+    console.error('Vehicle status update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update vehicle status'
     });
   }
 });
