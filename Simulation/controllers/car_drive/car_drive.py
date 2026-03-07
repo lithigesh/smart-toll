@@ -21,6 +21,8 @@ BASE_DISTANCE_KM = 28
 # Random variation
 START_LAT = BASE_LAT + random.uniform(-0.0005, 0.0005)
 START_LON = BASE_LON + random.uniform(-0.0005, 0.0005)
+END_LAT = START_LAT + random.uniform(0.01, 0.02)
+END_LON = START_LON + random.uniform(0.01, 0.02)
 TOTAL_DISTANCE_KM = BASE_DISTANCE_KM + random.uniform(-0.5, 0.5)
 
 # ---------------- DRIVER SETUP ----------------
@@ -81,6 +83,8 @@ while driver.step() != -1:
             "device_id": DEVICE_ID,
             "start_lat": START_LAT,
             "start_lon": START_LON,
+            "end_lat": END_LAT,
+            "end_lon": END_LON,
             "total_distance_km": TOTAL_DISTANCE_KM,
             "timestamp": formatted_timestamp
         }

@@ -14,6 +14,9 @@ DROP TABLE IF EXISTS journeys CASCADE;
 DROP FUNCTION IF EXISTS calculate_distance_between_points;
 DROP FUNCTION IF EXISTS process_gps_log;
 DROP FUNCTION IF EXISTS calculate_toll_for_vehicle;
+-- Drop older versions of the ESP32 processing function (signature changes)
+DROP FUNCTION IF EXISTS process_esp32_toll(VARCHAR(100), DECIMAL(10, 8), DECIMAL(11, 8), DECIMAL(10, 3), TIMESTAMP);
+DROP FUNCTION IF EXISTS process_esp32_toll(VARCHAR(100), DECIMAL(10, 8), DECIMAL(11, 8), DECIMAL(10, 8), DECIMAL(11, 8), DECIMAL(10, 3), TIMESTAMP);
 
 -- ============================================
 -- STEP 2: CREATE ESSENTIAL TABLES
@@ -89,6 +92,8 @@ CREATE TABLE IF NOT EXISTS esp32_toll_transactions (
     user_id INTEGER REFERENCES users(id),
     start_lat DECIMAL(10, 8) NOT NULL,
     start_lon DECIMAL(11, 8) NOT NULL,
+    end_lat DECIMAL(10, 8),
+    end_lon DECIMAL(11, 8),
     total_distance_km DECIMAL(10, 3) NOT NULL,
     toll_amount DECIMAL(10, 2) NOT NULL,
     wallet_balance_before DECIMAL(10, 2) NOT NULL,
@@ -97,6 +102,13 @@ CREATE TABLE IF NOT EXISTS esp32_toll_transactions (
     device_timestamp TIMESTAMP NOT NULL,
     processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- In case the table already exists (CREATE TABLE IF NOT EXISTS won't add columns)
+ALTER TABLE esp32_toll_transactions
+    ADD COLUMN IF NOT EXISTS end_lat DECIMAL(10, 8);
+
+ALTER TABLE esp32_toll_transactions
+    ADD COLUMN IF NOT EXISTS end_lon DECIMAL(11, 8);
 
 -- ============================================
 -- STEP 3: CREATE INDEXES
@@ -136,6 +148,8 @@ CREATE OR REPLACE FUNCTION process_esp32_toll(
     p_device_id VARCHAR(100),
     p_start_lat DECIMAL(10, 8),
     p_start_lon DECIMAL(11, 8),
+    p_end_lat DECIMAL(10, 8),
+    p_end_lon DECIMAL(11, 8),
     p_total_distance_km DECIMAL(10, 3),
     p_device_timestamp TIMESTAMP
 )
@@ -204,11 +218,11 @@ BEGIN
     IF v_current_balance < v_calculated_toll THEN
         -- Insert failed transaction
         INSERT INTO esp32_toll_transactions (
-            device_id, vehicle_id, user_id, start_lat, start_lon, 
+            device_id, vehicle_id, user_id, start_lat, start_lon, end_lat, end_lon,
             total_distance_km, toll_amount, wallet_balance_before, 
             wallet_balance_after, status, device_timestamp
         ) VALUES (
-            p_device_id, v_vehicle_id, v_user_id, p_start_lat, p_start_lon,
+            p_device_id, v_vehicle_id, v_user_id, p_start_lat, p_start_lon, p_end_lat, p_end_lon,
             p_total_distance_km, v_calculated_toll, v_current_balance,
             v_current_balance, 'insufficient_balance', p_device_timestamp
         ) RETURNING id INTO v_transaction_id;
@@ -234,11 +248,11 @@ BEGIN
     
     -- Insert successful transaction
     INSERT INTO esp32_toll_transactions (
-        device_id, vehicle_id, user_id, start_lat, start_lon, 
+        device_id, vehicle_id, user_id, start_lat, start_lon, end_lat, end_lon,
         total_distance_km, toll_amount, wallet_balance_before, 
         wallet_balance_after, status, device_timestamp
     ) VALUES (
-        p_device_id, v_vehicle_id, v_user_id, p_start_lat, p_start_lon,
+        p_device_id, v_vehicle_id, v_user_id, p_start_lat, p_start_lon, p_end_lat, p_end_lon,
         p_total_distance_km, v_calculated_toll, v_current_balance,
         v_new_balance, 'success', p_device_timestamp
     ) RETURNING id INTO v_transaction_id;

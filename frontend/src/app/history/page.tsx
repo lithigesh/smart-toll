@@ -1,0 +1,264 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { API_ENDPOINTS } from '@/config/config';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { AppLayout } from '@/components/Layout';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { formatCurrency, formatDate, formatFullDate } from '@/lib/utils';
+import { TollTransaction } from '@/types';
+import { Calendar, RefreshCw } from 'lucide-react';
+
+export default function HistoryPage() {
+  return (
+    <ProtectedRoute>
+      <AppLayout>
+        <HistoryContent />
+      </AppLayout>
+    </ProtectedRoute>
+  );
+}
+
+function HistoryContent() {
+  const { token } = useAuth();
+  const [transactions, setTransactions] = useState<TollTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const formatCoordPair = (lat: string | number | undefined, lon: string | number | undefined) => {
+    if (!lat || !lon) return 'N/A';
+    const latNum = typeof lat === 'number' ? lat : parseFloat(lat);
+    const lonNum = typeof lon === 'number' ? lon : parseFloat(lon);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return 'N/A';
+    return `${latNum.toFixed(4)}, ${lonNum.toFixed(4)}`;
+  };
+
+  const fetchTransactionHistory = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const response = await fetch(API_ENDPOINTS.esp32.tollTransactions, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(data.transactions || []);
+      } else {
+        setError(`Failed to fetch transaction history: ${response.status}`);
+      }
+    } catch {
+      setError('Failed to load transaction history');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchTransactionHistory();
+  }, [fetchTransactionHistory]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">Loading transaction history...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const successTransactions = transactions.filter((t) => t.status === 'success');
+  const totalDistance = successTransactions.reduce((sum, t) => sum + parseFloat(String(t.distance_km || 0)), 0);
+  const totalTolls = successTransactions.reduce((sum, t) => sum + parseFloat(String(t.toll_amount || 0)), 0);
+
+  return (
+    <div className="space-y-6 md:space-y-8">
+      {/* Header */}
+      <div className="space-y-3 md:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-light tracking-tight">Transaction History</h1>
+            <p className="text-sm md:text-base text-gray-500 mt-1">
+              View all your ESP32 toll transactions and journey details.
+            </p>
+          </div>
+          <Button onClick={fetchTransactionHistory} disabled={loading} variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Error State */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-red-600 font-medium">{error}</p>
+                <Button onClick={fetchTransactionHistory} variant="link" className="h-auto p-0 text-red-600">
+                  Try again
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="border hover:border-gray-400 transition-colors">
+          <CardHeader className="pb-3 md:pb-4">
+            <CardTitle className="text-xs md:text-sm font-medium text-gray-500">Total Trips</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl md:text-2xl font-light">{successTransactions.length}</div>
+            <p className="text-xs text-gray-500">Successful journeys</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border hover:border-gray-400 transition-colors">
+          <CardHeader className="pb-3 md:pb-4">
+            <CardTitle className="text-xs md:text-sm font-medium text-gray-500">Total Distance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl md:text-2xl font-light">{totalDistance.toFixed(1)} km</div>
+            <p className="text-xs text-gray-500">Kilometers traveled</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border hover:border-gray-400 transition-colors sm:col-span-2 lg:col-span-1">
+          <CardHeader className="pb-3 md:pb-4">
+            <CardTitle className="text-xs md:text-sm font-medium text-gray-500">Total Tolls Paid</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl md:text-2xl font-light">{formatCurrency(totalTolls)}</div>
+            <p className="text-xs text-gray-500">Amount deducted</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Transactions List */}
+      <Card className="border">
+        <CardHeader>
+          <CardTitle className="text-base md:text-lg font-medium flex items-center gap-2">
+            <Calendar className="w-4 h-4 md:w-5 md:h-5" />
+            Transactions History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {transactions.length === 0 ? (
+            <div className="text-center py-8 md:py-12">
+              <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 md:w-8 md:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-base md:text-lg font-medium mb-2">No Transactions Yet</h3>
+              <p className="text-sm md:text-base text-gray-500 mb-4 md:mb-6">
+                Your toll transaction history will appear here once you start using the smart toll system.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {transactions.map((t, i) => (
+                <div key={t.id || i} className="border border-gray-200 rounded-lg p-6 hover:border-gray-400 transition-colors">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                        t.status === 'success' ? 'bg-green-50 text-green-600' :
+                        t.status === 'failed' ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'
+                      }`}>
+                        {t.status === 'success' ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        ) : t.status === 'failed' ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">Toll Journey</h4>
+                        <p className="text-sm text-gray-500">
+                          {formatDate(t.device_timestamp || t.timestamp || t.created_at || '')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold text-gray-900">-{formatCurrency(t.toll_amount)}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        t.status === 'success' ? 'bg-green-100 text-green-800' :
+                        t.status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {t.status === 'success' ? 'Completed' : t.status === 'failed' ? 'Failed' : 'Processing'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mb-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-500">Device ID</p>
+                        <p className="text-sm font-medium break-all">{t.device_id}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Distance</p>
+                        <p className="text-sm font-medium">{t.distance_km} km</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-500">Vehicle</p>
+                        <p className="text-sm font-medium">{t.vehicle_number || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Route</p>
+                        <div className="text-sm font-medium flex flex-wrap items-center gap-x-8 gap-y-1">
+                          <span className="whitespace-nowrap">
+                            <span className="text-xs text-gray-500">Start:</span>{' '}
+                            {formatCoordPair(t.start_lat, t.start_lon)}
+                          </span>
+                          <span className="whitespace-nowrap">
+                            <span className="text-xs text-gray-500">End:</span>{' '}
+                            {formatCoordPair(t.end_lat, t.end_lon)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200">
+                    <p className="text-xs text-gray-500">
+                      <span className="font-medium">Transaction ID:</span> {t.id}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      <span className="font-medium">Timestamp:</span>{' '}
+                      {formatFullDate(t.device_timestamp || t.timestamp || t.created_at || '')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -124,16 +124,20 @@ app.use(errorHandler);
 const server = app.listen(PORT, async () => {
   console.log(`🚀 Smart Toll Server - http://localhost:${PORT}`);
   
-  // Test database connection
+  // Test database connection (non-blocking)
   try {
     const dbHealth = await healthCheck();
     if (dbHealth.status === 'healthy') {
       console.log('✅ Database connected successfully');
     } else {
-      console.log('❌ Database connection failed:', dbHealth.error);
+      console.log('⚠️  Database connection warning:', dbHealth.error);
+      if (dbHealth.hint) {
+        console.log('📝 Hint:', dbHealth.hint);
+      }
     }
   } catch (error) {
-    console.log('❌ Database error:', error.message);
+    console.log('⚠️  Database error during startup:', error.message);
+    console.log('📝 The server will continue running. Database operations may fail until this is resolved.');
   }
 
   console.log('\nThe Server is running.....\n');

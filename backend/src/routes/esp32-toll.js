@@ -58,6 +58,8 @@ router.get('/transactions', authMiddleware, async (req, res) => {
       device_id: transaction.device_id,
       start_lat: transaction.start_lat,
       start_lon: transaction.start_lon,
+      end_lat: transaction.end_lat,
+      end_lon: transaction.end_lon,
       distance_km: transaction.total_distance_km,
       toll_amount: transaction.toll_amount,
       status: transaction.status,
@@ -94,24 +96,63 @@ router.get('/transactions', authMiddleware, async (req, res) => {
  *   "device_id": "ESP32_DEVICE_001",
  *   "start_lat": 11.0168,
  *   "start_lon": 76.9558,
+ *   "end_lat": 11.0268,
+ *   "end_lon": 76.9658,
  *   "total_distance_km": 15.5,
  *   "timestamp": "2025-10-10T10:30:00Z"
  * }
  */
 router.post('/process', async (req, res) => {
   try {
-    const { device_id, start_lat, start_lon, total_distance_km, timestamp } = req.body;
+    const { device_id, start_lat, start_lon, end_lat, end_lon, total_distance_km, timestamp } = req.body;
+
+    const startLatNum = parseFloat(start_lat);
+    const startLonNum = parseFloat(start_lon);
+    const endLatNum = parseFloat(end_lat);
+    const endLonNum = parseFloat(end_lon);
+    const totalDistanceKmNum = parseFloat(total_distance_km);
 
     // Validate required fields
-    if (!device_id || start_lat === undefined || start_lon === undefined || !total_distance_km || !timestamp) {
+    if (
+      !device_id ||
+      start_lat === undefined ||
+      start_lon === undefined ||
+      end_lat === undefined ||
+      end_lon === undefined ||
+      total_distance_km === undefined ||
+      !timestamp
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: device_id, start_lat, start_lon, total_distance_km, timestamp'
+        message: 'Missing required fields: device_id, start_lat, start_lon, end_lat, end_lon, total_distance_km, timestamp'
+      });
+    }
+
+    // Validate numeric values
+    if (
+      !Number.isFinite(startLatNum) ||
+      !Number.isFinite(startLonNum) ||
+      !Number.isFinite(endLatNum) ||
+      !Number.isFinite(endLonNum) ||
+      !Number.isFinite(totalDistanceKmNum)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid numeric values for coordinates or distance'
       });
     }
 
     // Validate coordinates
-    if (start_lat < -90 || start_lat > 90 || start_lon < -180 || start_lon > 180) {
+    if (
+      startLatNum < -90 ||
+      startLatNum > 90 ||
+      startLonNum < -180 ||
+      startLonNum > 180 ||
+      endLatNum < -90 ||
+      endLatNum > 90 ||
+      endLonNum < -180 ||
+      endLonNum > 180
+    ) {
       return res.status(400).json({
         success: false,
         message: 'Invalid coordinates'
@@ -119,14 +160,16 @@ router.post('/process', async (req, res) => {
     }
 
     // Validate distance
-    if (total_distance_km <= 0) {
+    if (totalDistanceKmNum <= 0) {
       return res.status(400).json({
         success: false,
         message: 'Distance must be greater than 0'
       });
     }
 
-    console.log(`ESP32 Toll Request - Device: ${device_id}, Distance: ${total_distance_km}km, Timestamp: ${timestamp}`);
+    console.log(
+      `ESP32 Toll Request - Device: ${device_id}, Distance: ${totalDistanceKmNum}km, Timestamp: ${timestamp}`
+    );
 
     // Parse and validate timestamp - handle different formats
     let parsedTimestamp;
@@ -172,9 +215,11 @@ router.post('/process', async (req, res) => {
     // Process the toll transaction using the database function
     const { data, error } = await supabase.rpc('process_esp32_toll', {
       p_device_id: device_id,
-      p_start_lat: parseFloat(start_lat),
-      p_start_lon: parseFloat(start_lon),
-      p_total_distance_km: parseFloat(total_distance_km),
+      p_start_lat: startLatNum,
+      p_start_lon: startLonNum,
+      p_end_lat: endLatNum,
+      p_end_lon: endLonNum,
+      p_total_distance_km: totalDistanceKmNum,
       p_device_timestamp: parsedTimestamp.toISOString()
     });
 
