@@ -134,9 +134,11 @@ void processGPS() {
     double d = haversine(prevLat, prevLon, lat, lon);
     if (d >= MIN_VALID_MOVE_METERS && d <= MAX_GLITCH_METERS) {
       totalDistance += d;
-      prevLat = lat;
-      prevLon = lon;
     }
+
+    // Edge Case: trades off distance updates with system failure
+    prevLat = lat;
+    prevLon = lon;
 
     for (int i = 0; i < fenceCount; i++) {
       if (fenceTxEnable[i] && !txAlreadySent) {
