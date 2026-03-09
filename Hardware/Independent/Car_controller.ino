@@ -2,11 +2,11 @@
 
 BluetoothSerial SerialBT;
 
-#define IN1 25
+#define IN1 27
 #define IN2 26
 #define IN3 32
 #define IN4 33
-#define ENA 27
+#define ENA 25
 #define ENB 14
 
 void setup() {
