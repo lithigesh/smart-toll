@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Search, MoreHorizontal, Mail, Phone, Calendar, SlidersHorizontal, X } from "lucide-react";
+import { Search, MoreHorizontal, Mail, Phone, Calendar, SlidersHorizontal, X, Wallet } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,15 +15,43 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { API_ENDPOINTS } from "@/config/api";
 import { User } from "@/types";
 import { UserDetailsDialog } from "@/components/dialogs/UserDetailsDialog";
 import { UserTransactionsDialog } from "@/components/dialogs/UserTransactionsDialog";
+
+type UserWithWalletResponse = {
+  user?: {
+    wallet_balance?: number | string | null;
+    wallets?: Array<{
+      balance?: number | string | null;
+    }> | {
+      balance?: number | string | null;
+    };
+  };
+};
+
+const normalizeWalletBalance = (value: unknown): number | null => {
+  if (value == null || value === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -60,7 +88,51 @@ export default function UsersPage() {
       }
 
       const data = await response.json();
-      setUsers(data.users || data.data || data || []);
+      const baseUsers = data.users || data.data || data || [];
+
+      const usersWithWallets = await Promise.all(
+        baseUsers.map(async (user: User) => {
+          const listWalletBalance = normalizeWalletBalance(user.wallet_balance);
+
+          if (listWalletBalance != null) {
+            return {
+              ...user,
+              wallet_balance: listWalletBalance,
+            };
+          }
+
+          try {
+            const detailsResponse = await fetch(API_ENDPOINTS.admin.userDetails(user.id), {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+
+            if (!detailsResponse.ok) {
+              return user;
+            }
+
+            const detailsData: UserWithWalletResponse = await detailsResponse.json();
+
+            const rawWallets = detailsData.user?.wallets;
+            const detailsWalletBalance = Array.isArray(rawWallets)
+              ? rawWallets[0]?.balance
+              : rawWallets?.balance;
+            const walletBalance = normalizeWalletBalance(
+              detailsData.user?.wallet_balance ?? detailsWalletBalance
+            );
+
+            return {
+              ...user,
+              wallet_balance: walletBalance,
+            };
+          } catch {
+            return user;
+          }
+        })
+      );
+
+      setUsers(usersWithWallets);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
@@ -120,6 +192,34 @@ export default function UsersPage() {
   const handleViewTransactions = (user: User) => {
     setSelectedUser(user);
     setIsTransactionsDialogOpen(true);
+  };
+
+  const handleDeleteUser = async (user: User) => {
+    if (!window.confirm(`Delete user "${user.name}"? This cannot be undone.`)) return false;
+    try {
+      const token = localStorage.getItem("adminToken");
+      const response = await fetch(API_ENDPOINTS.admin.deleteUser(user.id), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete user");
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete user");
+      throw err;
+    }
+  };
+
+  const handleDeleteUserFromDetails = async (user: User) => {
+    const deleted = await handleDeleteUser(user);
+    if (deleted) {
+      setIsDetailsDialogOpen(false);
+      setSelectedUser(null);
+    }
   };
 
   const handleSaveUser = async (updatedUser: User, adminPassword: string) => {
@@ -210,35 +310,38 @@ export default function UsersPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
             <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="all">All time</option>
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-            </select>
-            <select
-              value={phoneFilter}
-              onChange={(e) => setPhoneFilter(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="all">Any phone</option>
-              <option value="with">Has phone</option>
-              <option value="without">No phone</option>
-            </select>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="name-az">Name A→Z</option>
-              <option value="name-za">Name Z→A</option>
-            </select>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger size="sm" className="w-auto text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={phoneFilter} onValueChange={setPhoneFilter}>
+              <SelectTrigger size="sm" className="w-auto text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any phone</SelectItem>
+                <SelectItem value="with">Has phone</SelectItem>
+                <SelectItem value="without">No phone</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger size="sm" className="w-auto text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="name-az">Name A→Z</SelectItem>
+                <SelectItem value="name-za">Name Z→A</SelectItem>
+              </SelectContent>
+            </Select>
             {(dateFilter !== "all" || phoneFilter !== "all" || sortBy !== "newest") && (
               <button
                 onClick={() => { setDateFilter("all"); setPhoneFilter("all"); setSortBy("newest"); }}
@@ -266,13 +369,14 @@ export default function UsersPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
+                    <TableHead>Wallet</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow key={user.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleViewDetails(user)}>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
@@ -298,12 +402,20 @@ export default function UsersPage() {
                         )}
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Wallet className="h-3 w-3 text-muted-foreground" />
+                          {user.wallet_balance != null
+                            ? <span>₹{Number(user.wallet_balance).toFixed(2)}</span>
+                            : <span className="text-muted-foreground text-xs">—</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           {new Date(user.created_at).toLocaleDateString()}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -316,6 +428,13 @@ export default function UsersPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleViewTransactions(user)}>
                               View Transactions
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => handleDeleteUser(user)}
+                            >
+                              Delete User
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -334,6 +453,7 @@ export default function UsersPage() {
         isOpen={isDetailsDialogOpen}
         onClose={() => setIsDetailsDialogOpen(false)}
         onSave={handleSaveUser}
+        onDelete={handleDeleteUserFromDetails}
       />
 
       <UserTransactionsDialog

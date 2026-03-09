@@ -32,7 +32,7 @@ const corsOptions = {
   ].filter(Boolean),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-razorpay-signature']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-razorpay-signature', 'Cache-Control']
 };
 
 app.use(cors(corsOptions));

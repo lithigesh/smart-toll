@@ -23,7 +23,7 @@ const VEHICLE_TYPES = ['Car', 'Bike', 'Truck', 'Bus'];
 function getVehicleTypeIcon(type?: string) {
   switch (type?.toLowerCase()) {
     case 'car': return '\u{1F697}';
-    case 'motorcycle': case 'bike': return '\u{1F3CD}';
+    case 'bike': return '\u{1F3CD}';
     case 'truck': return '\u{1F69B}';
     case 'bus': return '\u{1F68C}';
     default: return '\u{1F697}';

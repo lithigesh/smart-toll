@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Car, IndianRupee, Edit, Save, X, Search, SlidersHorizontal } from "lucide-react";
+import { Bike, BusFront, CarFront, IndianRupee, Edit, Save, Truck, X, Search, SlidersHorizontal } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,13 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { API_ENDPOINTS } from "@/config/api";
 import { VehicleTypeRate } from "@/types";
 
@@ -139,7 +146,17 @@ export default function VehicleRatesPage() {
   };
 
   const getVehicleIcon = (type: string) => {
-    return <Car className="h-4 w-4" />;
+    switch (type?.toLowerCase()) {
+      case "bike":
+        return <Bike className="h-4 w-4" />;
+      case "bus":
+        return <BusFront className="h-4 w-4" />;
+      case "truck":
+        return <Truck className="h-4 w-4" />;
+      case "car":
+      default:
+        return <CarFront className="h-4 w-4" />;
+    }
   };
 
   const getVehicleColor = (type: string) => {
@@ -148,7 +165,6 @@ export default function VehicleRatesPage() {
       bike: "bg-green-100 text-green-600",
       bus: "bg-purple-100 text-purple-600",
       truck: "bg-orange-100 text-orange-600",
-      auto: "bg-yellow-100 text-yellow-600",
     };
     return colors[type?.toLowerCase()] || "bg-gray-100 text-gray-600";
   };
@@ -212,15 +228,16 @@ export default function VehicleRatesPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
             <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="type-az">Type A→Z</option>
-              <option value="rate-high">Rate high→low</option>
-              <option value="rate-low">Rate low→high</option>
-            </select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger size="sm" className="w-auto text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="type-az">Type A→Z</SelectItem>
+                <SelectItem value="rate-high">Rate high→low</SelectItem>
+                <SelectItem value="rate-low">Rate low→high</SelectItem>
+              </SelectContent>
+            </Select>
             {(searchQuery || sortBy !== "type-az") && (
               <button
                 onClick={() => { setSearchQuery(""); setSortBy("type-az"); }}
@@ -254,7 +271,7 @@ export default function VehicleRatesPage() {
                     <TableHead>Vehicle Type</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Toll Rate</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -317,7 +334,7 @@ export default function VehicleRatesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-red-600"
+                              className="h-8 w-8 text-muted-foreground"
                               onClick={cancelEditing}
                               disabled={saving}
                             >
@@ -325,14 +342,16 @@ export default function VehicleRatesPage() {
                             </Button>
                           </div>
                         ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => startEditing(rate)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => startEditing(rate)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>

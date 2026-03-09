@@ -17,6 +17,7 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
+  wallet_balance?: number | null;
   created_at: string;
   updated_at: string;
 }

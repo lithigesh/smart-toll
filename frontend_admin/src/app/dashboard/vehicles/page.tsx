@@ -16,9 +16,17 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { API_ENDPOINTS } from "@/config/api";
@@ -101,6 +109,34 @@ export default function VehiclesPage() {
     if (vehicle.user) {
       setSelectedUser(vehicle.user);
       setIsOwnerDetailsOpen(true);
+    }
+  };
+
+  const handleDeleteVehicle = async (vehicle: Vehicle) => {
+    if (!window.confirm(`Delete vehicle "${vehicle.vehicle_number}"? This cannot be undone.`)) return false;
+    try {
+      const token = localStorage.getItem("adminToken");
+      const response = await fetch(API_ENDPOINTS.admin.deleteVehicle(vehicle.id), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete vehicle");
+      }
+      setVehicles((prev) => prev.filter((v) => v.id !== vehicle.id));
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete vehicle");
+      throw err;
+    }
+  };
+
+  const handleDeleteVehicleFromDetails = async (vehicle: Vehicle) => {
+    const deleted = await handleDeleteVehicle(vehicle);
+    if (deleted) {
+      setIsVehicleDetailsOpen(false);
+      setSelectedVehicle(null);
     }
   };
 
@@ -270,36 +306,38 @@ export default function VehiclesPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
             <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="all">All types</option>
-              <option value="car">Car</option>
-              <option value="bike">Bike</option>
-              <option value="bus">Bus</option>
-              <option value="truck">Truck</option>
-              <option value="auto">Auto</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="all">Any status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="number-az">Number A→Z</option>
-            </select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger size="sm" className="w-auto text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="car">Car</SelectItem>
+                <SelectItem value="bike">Bike</SelectItem>
+                <SelectItem value="bus">Bus</SelectItem>
+                <SelectItem value="truck">Truck</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger size="sm" className="w-auto text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger size="sm" className="w-auto text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="number-az">Number A→Z</SelectItem>
+              </SelectContent>
+            </Select>
             {(typeFilter !== "all" || statusFilter !== "all" || sortBy !== "newest") && (
               <button
                 onClick={() => { setTypeFilter("all"); setStatusFilter("all"); setSortBy("newest"); }}
@@ -334,7 +372,11 @@ export default function VehiclesPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredVehicles.map((vehicle) => (
-                    <TableRow key={vehicle.id}>
+                    <TableRow
+                      key={vehicle.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleViewVehicleDetails(vehicle)}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-primary">
@@ -370,7 +412,7 @@ export default function VehiclesPage() {
                           {new Date(vehicle.created_at).toLocaleDateString()}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -383,6 +425,13 @@ export default function VehiclesPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleViewOwner(vehicle)}>
                               View Owner
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => handleDeleteVehicle(vehicle)}
+                            >
+                              Delete Vehicle
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -408,6 +457,7 @@ export default function VehiclesPage() {
         onClose={() => setIsVehicleDetailsOpen(false)}
         onSave={handleSaveVehicle}
         onStatusChange={handleVehicleStatusChange}
+        onDelete={handleDeleteVehicleFromDetails}
       />
     </div>
   );

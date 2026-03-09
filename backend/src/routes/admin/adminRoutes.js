@@ -231,8 +231,22 @@ router.get('/search/users', authenticateAdmin, async (req, res) => {
 
     if (error) throw error;
 
+    // Fetch wallet balances in a separate flat query (more reliable than nested FK join)
+    const userIds = (users || []).map(u => u.id);
+    const { data: wallets } = userIds.length
+      ? await supabase.from('wallets').select('user_id, balance').in('user_id', userIds)
+      : { data: [] };
+
+    const walletMap = {};
+    (wallets || []).forEach(w => { walletMap[w.user_id] = parseFloat(w.balance); });
+
+    const usersWithWallet = (users || []).map(u => ({
+      ...u,
+      wallet_balance: walletMap[u.id] !== undefined ? walletMap[u.id] : null,
+    }));
+
     res.json({
-      data: users || [],
+      data: usersWithWallet,
       total: count || 0,
       page: parseInt(page),
       limit: parseInt(limit)
@@ -244,6 +258,25 @@ router.get('/search/users', authenticateAdmin, async (req, res) => {
       success: false, 
       message: 'Failed to fetch users' 
     });
+  }
+});
+
+// Delete user
+router.delete('/users/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete user' });
   }
 });
 
@@ -287,10 +320,16 @@ router.get('/users/:id', authenticateAdmin, async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(10);
 
+    const rawWallets = user.wallets;
+    const walletBalance = Array.isArray(rawWallets)
+      ? rawWallets[0]?.balance
+      : rawWallets?.balance;
+
     res.json({
       success: true,
       user: {
         ...user,
+        wallet_balance: walletBalance != null ? parseFloat(walletBalance) : null,
         recentTransactions: transactions || []
       }
     });
@@ -929,6 +968,44 @@ router.put('/search/vehicles/:id', authenticateAdmin, async (req, res) => {
       success: false,
       message: 'Failed to update vehicle'
     });
+  }
+});
+
+// Delete vehicle
+router.delete('/search/vehicles/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('vehicles')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Vehicle deleted successfully' });
+  } catch (error) {
+    console.error('Delete vehicle error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete vehicle' });
+  }
+});
+
+// Delete transaction
+router.delete('/search/transactions/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('esp32_toll_transactions')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Transaction deleted successfully' });
+  } catch (error) {
+    console.error('Delete transaction error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete transaction' });
   }
 });
 
