@@ -87,6 +87,16 @@ export interface VehicleTypeRate {
   description?: string;
 }
 
+export interface TollZone {
+  id: string | number;
+  name: string;
+  latitude: string | number;
+  longitude: string | number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // API Response Types
 export interface ApiResponse<T> {
   success: boolean;

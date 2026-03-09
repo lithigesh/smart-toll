@@ -25,6 +25,7 @@ export interface TollTransaction {
   id: string | number;
   device_id: string;
   vehicle_number?: string;
+  toll_location?: string;
   distance_km: string | number;
   toll_amount: string | number;
   status: 'success' | 'failed' | 'processing';

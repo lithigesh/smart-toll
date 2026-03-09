@@ -29,8 +29,8 @@ static const char* API_URL = "https://smart-toll-api.vercel.app/api/esp32-toll/p
 // Fixed Toll Gate location (end coordinates)
 // DMS: 10°54'13.31"N 76°53'57.59"E
 // Decimal degrees: 10.9036972222, 76.8993305556
-static const float TOLL_GATE_END_LAT = 10.903697f;
-static const float TOLL_GATE_END_LON = 76.899331f;
+static const double TOLL_GATE_END_LAT = 10.90369700;
+static const double TOLL_GATE_END_LON = 76.89933100;
 
 // NTP time sync (used if incoming payload doesn't include a timestamp)
 static const char* NTP_SERVER_1 = "pool.ntp.org";

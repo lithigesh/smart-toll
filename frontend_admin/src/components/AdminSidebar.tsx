@@ -7,6 +7,7 @@ import {
   Users,
   Car,
   Receipt,
+  MapPinned,
   Settings,
   LogOut,
   Shield,
@@ -54,6 +55,11 @@ const menuItems = [
     title: "Transactions",
     icon: Receipt,
     href: "/dashboard/transactions",
+  },
+  {
+    title: "Toll Zones",
+    icon: MapPinned,
+    href: "/dashboard/toll-zones",
   },
   {
     title: "Vehicle Rates",

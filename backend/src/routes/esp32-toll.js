@@ -35,6 +35,10 @@ router.get('/transactions', authMiddleware, async (req, res) => {
       .from('esp32_toll_transactions')
       .select(`
         *,
+        toll_zones (
+          id,
+          name
+        ),
         vehicles (
           vehicle_number,
           vehicle_type
@@ -64,6 +68,7 @@ router.get('/transactions', authMiddleware, async (req, res) => {
       toll_amount: transaction.toll_amount,
       status: transaction.status,
       created_at: transaction.processed_at,
+      toll_location: transaction.toll_zones?.name || null,
       vehicle_number: transaction.vehicles?.vehicle_number || null,
       vehicle_type: transaction.vehicles?.vehicle_type || null,
       timestamp: transaction.device_timestamp || transaction.processed_at

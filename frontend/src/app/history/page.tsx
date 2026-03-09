@@ -219,15 +219,21 @@ function HistoryContent() {
                         <p className="text-sm font-medium break-all">{t.device_id}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Distance</p>
-                        <p className="text-sm font-medium">{t.distance_km} km</p>
+                        <p className="text-xs text-gray-500">Toll Gate</p>
+                        <p className="text-sm font-medium">{t.toll_location || 'Unknown Toll Gate'}</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
+                        <p className="text-xs text-gray-500">Distance</p>
+                        <p className="text-sm font-medium">{t.distance_km} km</p>
+                      </div>
+                      <div>
                         <p className="text-xs text-gray-500">Vehicle</p>
                         <p className="text-sm font-medium">{t.vehicle_number || 'N/A'}</p>
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <p className="text-xs text-gray-500">Route</p>
                         <div className="text-sm font-medium flex flex-wrap items-center gap-x-8 gap-y-1">

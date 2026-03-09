@@ -12,12 +12,15 @@ export const API_ENDPOINTS = {
     userDetails: (userId: string) => `${API_BASE_URL}/admin/users/${userId}`,
     vehicles: `${API_BASE_URL}/admin/search/vehicles`,
     transactions: `${API_BASE_URL}/admin/search/transactions`,
+    tollZones: `${API_BASE_URL}/admin/toll-zones`,
     vehicleRates: `${API_BASE_URL}/admin/vehicle-rates`,
     vehicleTypes: `${API_BASE_URL}/admin/vehicle-types`,
     updateUser: (userId: string) => `${API_BASE_URL}/admin/users/${userId}`,
     deleteUser: (userId: string) => `${API_BASE_URL}/admin/users/${userId}`,
     deleteVehicle: (vehicleId: string) => `${API_BASE_URL}/admin/search/vehicles/${vehicleId}`,
     deleteTransaction: (txId: string) => `${API_BASE_URL}/admin/search/transactions/${txId}`,
+    updateTollZone: (zoneId: string | number) => `${API_BASE_URL}/admin/toll-zones/${zoneId}`,
+    deleteTollZone: (zoneId: string | number) => `${API_BASE_URL}/admin/toll-zones/${zoneId}`,
   },
 };
 

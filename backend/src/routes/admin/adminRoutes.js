@@ -4,6 +4,27 @@ const { supabase } = require('../../config/supabase-db');
 
 const router = express.Router();
 
+const normalizeTollZonePayload = (body = {}) => {
+  const name = String(body.name || '').trim();
+  const latitude = Number.parseFloat(body.latitude);
+  const longitude = Number.parseFloat(body.longitude);
+  const is_active = body.is_active === undefined ? true : Boolean(body.is_active);
+
+  if (!name) {
+    return { error: 'Toll zone name is required' };
+  }
+
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    return { error: 'Latitude must be a valid value between -90 and 90' };
+  }
+
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    return { error: 'Longitude must be a valid value between -180 and 180' };
+  }
+
+  return { name, latitude, longitude, is_active };
+};
+
 // Admin login middleware
 const authenticateAdmin = (req, res, next) => {
   const authHeader = req.header('Authorization');
@@ -131,6 +152,10 @@ router.get('/analytics', authenticateAdmin, async (req, res) => {
       .from('esp32_toll_transactions')
       .select(`
         *,
+        toll_zones (
+          id,
+          name
+        ),
         vehicles (
           id,
           vehicle_number,
@@ -165,7 +190,7 @@ router.get('/analytics', authenticateAdmin, async (req, res) => {
       id: t.id,
       amount: t.toll_amount,
       created_at: t.processed_at,
-      toll_location: 'Toll Zone',
+      toll_location: t.toll_zones?.name || 'Unknown Toll Zone',
       device_id: t.device_id,
       status: 'completed',
       vehicle: t.vehicles ? {
@@ -438,7 +463,7 @@ router.get('/search/vehicles', authenticateAdmin, async (req, res) => {
 // Search transactions
 router.get('/search/transactions', authenticateAdmin, async (req, res) => {
   try {
-    const { search = '', page = 1, limit = 10, user_id } = req.query;
+    const { search = '', page = 1, limit = 10, user_id, vehicle_id } = req.query;
     const offset = (page - 1) * limit;
 
     let query = supabase
@@ -451,6 +476,12 @@ router.get('/search/transactions', authenticateAdmin, async (req, res) => {
         total_distance_km,
         status,
         processed_at,
+        toll_zones (
+          id,
+          name,
+          latitude,
+          longitude
+        ),
         users (
           id,
           name,
@@ -473,6 +504,10 @@ router.get('/search/transactions', authenticateAdmin, async (req, res) => {
       query = query.eq('user_id', user_id);
     }
 
+    if (vehicle_id) {
+      query = query.eq('vehicle_id', vehicle_id);
+    }
+
     // Apply search filter if provided
     if (search) {
       query = query.or(`id.eq.${search},user_id.eq.${search},device_id.ilike.%${search}%`);
@@ -482,6 +517,9 @@ router.get('/search/transactions', authenticateAdmin, async (req, res) => {
     let countQuery = supabase.from('esp32_toll_transactions').select('*', { count: 'exact', head: true });
     if (user_id) {
       countQuery = countQuery.eq('user_id', user_id);
+    }
+    if (vehicle_id) {
+      countQuery = countQuery.eq('vehicle_id', vehicle_id);
     }
     const { count } = await countQuery;
 
@@ -512,7 +550,7 @@ router.get('/search/transactions', authenticateAdmin, async (req, res) => {
       type: 'toll_payment',
       amount: transaction.toll_amount,
       distance_km: transaction.total_distance_km,
-      toll_location: null,
+      toll_location: transaction.toll_zones?.name || null,
       // Map database status to frontend status
       status: transaction.status === 'success' ? 'completed' : 
               transaction.status === 'insufficient_balance' ? 'failed' : 
@@ -533,6 +571,119 @@ router.get('/search/transactions', authenticateAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to search transactions' 
+    });
+  }
+});
+
+// ========== TOLL ZONES MANAGEMENT ==========
+
+router.get('/toll-zones', authenticateAdmin, async (req, res) => {
+  try {
+    const { data: zones, error } = await supabase
+      .from('toll_zones')
+      .select('id, name, latitude, longitude, is_active, created_at, updated_at')
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: zones || []
+    });
+  } catch (error) {
+    console.error('Get toll zones error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch toll zones'
+    });
+  }
+});
+
+router.post('/toll-zones', authenticateAdmin, async (req, res) => {
+  try {
+    const payload = normalizeTollZonePayload(req.body);
+
+    if (payload.error) {
+      return res.status(400).json({ success: false, message: payload.error });
+    }
+
+    const { data: zone, error } = await supabase
+      .from('toll_zones')
+      .insert({
+        ...payload,
+        updated_at: new Date().toISOString()
+      })
+      .select('id, name, latitude, longitude, is_active, created_at, updated_at')
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      message: 'Toll zone created successfully',
+      data: zone
+    });
+  } catch (error) {
+    console.error('Create toll zone error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create toll zone'
+    });
+  }
+});
+
+router.put('/toll-zones/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const payload = normalizeTollZonePayload(req.body);
+
+    if (payload.error) {
+      return res.status(400).json({ success: false, message: payload.error });
+    }
+
+    const { data: zone, error } = await supabase
+      .from('toll_zones')
+      .update({
+        ...payload,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('id, name, latitude, longitude, is_active, created_at, updated_at')
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Toll zone updated successfully',
+      data: zone
+    });
+  } catch (error) {
+    console.error('Update toll zone error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update toll zone'
+    });
+  }
+});
+
+router.delete('/toll-zones/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('toll_zones')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Toll zone deleted successfully' });
+  } catch (error) {
+    console.error('Delete toll zone error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete toll zone'
     });
   }
 });
