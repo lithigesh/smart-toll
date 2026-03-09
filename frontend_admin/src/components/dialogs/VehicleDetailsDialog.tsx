@@ -338,29 +338,22 @@ export function VehicleDetailsDialog({
               ) : (
                 <div className="space-y-2">
                   {transactions.map((transaction) => (
-                    <div key={transaction.id} className="rounded-xl border bg-card p-4 transition hover:bg-muted/40">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div key={transaction.id} className="p-4 border rounded-md hover:bg-muted/50 transition">
+                      <div className="flex items-center justify-between gap-4">
                         <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div className="h-9 w-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                          <div className="h-9 w-9 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
                             <Car className="h-4 w-4" />
                           </div>
-                          <div className="min-w-0 flex-1 space-y-2">
+                          <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant={getStatusColor(transaction.status)}>
-                                {transaction.status}
+                              <p className="font-semibold font-mono truncate">
+                                {transaction.vehicle?.vehicle_number || displayVehicle?.vehicle_number || "Unknown Vehicle"}
+                              </p>
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {transaction.vehicle?.vehicle_type || displayVehicle?.vehicle_type || "Vehicle"}
                               </Badge>
-                              {transaction.type ? (
-                                <Badge variant="outline" className="capitalize">
-                                  {transaction.type.replace(/_/g, " ")}
-                                </Badge>
-                              ) : null}
-                              {transaction.payment_method ? (
-                                <Badge variant="outline" className="capitalize">
-                                  {transaction.payment_method}
-                                </Badge>
-                              ) : null}
                             </div>
-                            <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-muted-foreground mt-1">
                               <div className="flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
                                 <span>{transaction.toll_location || "Toll Zone"}</span>
@@ -369,18 +362,20 @@ export function VehicleDetailsDialog({
                                 <Calendar className="h-3 w-3" />
                                 <span>{new Date(transaction.created_at).toLocaleString()}</span>
                               </div>
-                              {transaction.distance_km ? (
-                                <div className="text-xs">Distance: {transaction.distance_km} km</div>
-                              ) : null}
                             </div>
-                            {transaction.description ? (
-                              <p className="text-sm text-foreground/80">{transaction.description}</p>
+                            {(transaction.distance_km || transaction.description) ? (
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-muted-foreground mt-2">
+                                {transaction.distance_km ? <span>Distance: {transaction.distance_km} km</span> : null}
+                                {transaction.description ? <span>{transaction.description}</span> : null}
+                              </div>
                             ) : null}
                           </div>
                         </div>
-                        <div className="shrink-0 rounded-lg bg-orange-50 px-3 py-2 text-right sm:min-w-30">
-                          <p className="text-xs font-medium uppercase tracking-wide text-orange-700">Amount</p>
-                          <p className="text-lg font-bold text-orange-600">₹{transaction.amount}</p>
+                        <div className="text-right shrink-0">
+                          <p className="text-base font-bold text-orange-600">₹{transaction.amount}</p>
+                          <Badge variant={getStatusColor(transaction.status)}>
+                            {transaction.status}
+                          </Badge>
                         </div>
                       </div>
                     </div>

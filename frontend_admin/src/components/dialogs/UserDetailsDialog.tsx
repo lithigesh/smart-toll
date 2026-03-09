@@ -456,6 +456,12 @@ export function UserDetailsDialog({ user, isOpen, onClose, onSave, onDelete }: U
                                 <span>{new Date(transaction.created_at).toLocaleString()}</span>
                               </div>
                             </div>
+                            {(transaction.distance_km || transaction.description) ? (
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-muted-foreground mt-2">
+                                {transaction.distance_km ? <span>Distance: {transaction.distance_km} km</span> : null}
+                                {transaction.description ? <span>{transaction.description}</span> : null}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
