@@ -93,6 +93,11 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Verify admin token (lightweight — used by frontend on session restore)
+router.get('/verify', authenticateAdmin, (req, res) => {
+  res.json({ success: true, admin: req.admin });
+});
+
 // Get dashboard analytics
 router.get('/analytics', authenticateAdmin, async (req, res) => {
   try {

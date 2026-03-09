@@ -80,6 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     name: string;
     email: string;
     password: string;
+    phone: string;
   }): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
       const response = await fetch(API_ENDPOINTS.auth.register, {

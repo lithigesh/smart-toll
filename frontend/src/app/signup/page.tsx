@@ -15,13 +15,14 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Loader2, Mail, Lock, User, UserPlus } from 'lucide-react';
+import { Loader2, Mail, Lock, User, UserPlus, Phone } from 'lucide-react';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
   });
@@ -54,6 +55,13 @@ export default function SignupPage() {
       return;
     }
 
+    const phoneDigits = formData.phone.replace(/\D/g, '');
+    if (phoneDigits.length !== 10) {
+      setError('Please enter a valid 10-digit phone number');
+      setIsLoading(false);
+      return;
+    }
+
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
       setIsLoading(false);
@@ -73,6 +81,7 @@ export default function SignupPage() {
       const result = await signup({
         name: `${formData.firstName} ${formData.lastName}`.trim(),
         email: formData.email,
+        phone: formData.phone.replace(/\D/g, ''),
         password: formData.password,
       });
 
@@ -186,6 +195,28 @@ export default function SignupPage() {
                     disabled={isLoading}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
+                  Phone Number
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    placeholder="10-digit mobile number"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="pl-10"
+                    required
+                    maxLength={10}
+                    disabled={isLoading}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Used to link your vehicle &amp; transactions</p>
               </div>
 
               <div className="space-y-2">

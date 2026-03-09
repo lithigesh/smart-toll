@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, MoreHorizontal, Car, Calendar } from "lucide-react";
+import { Search, MoreHorizontal, Car, Calendar, SlidersHorizontal, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -32,6 +32,9 @@ export default function VehiclesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [isOwnerDetailsOpen, setIsOwnerDetailsOpen] = useState(false);
@@ -188,12 +191,28 @@ export default function VehiclesPage() {
     }
   };
 
-  const filteredVehicles = vehicles.filter(
-    (vehicle) =>
-      vehicle.vehicle_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle.vehicle_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle.device_id?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredVehicles = useMemo(() => {
+    return vehicles
+      .filter((vehicle) => {
+        const matchSearch =
+          !searchQuery ||
+          vehicle.vehicle_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          vehicle.vehicle_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          vehicle.device_id?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchType = typeFilter === "all" || vehicle.vehicle_type?.toLowerCase() === typeFilter;
+        const matchStatus =
+          statusFilter === "all" ||
+          (statusFilter === "active" && vehicle.is_active) ||
+          (statusFilter === "inactive" && !vehicle.is_active);
+        return matchSearch && matchType && matchStatus;
+      })
+      .sort((a, b) => {
+        if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        if (sortBy === "number-az") return (a.vehicle_number || "").localeCompare(b.vehicle_number || "");
+        return 0;
+      });
+  }, [vehicles, searchQuery, typeFilter, statusFilter, sortBy]);
 
   const getVehicleTypeColor = (type: string) => {
     const colors: Record<string, string> = {
@@ -236,18 +255,59 @@ export default function VehiclesPage() {
             <div>
               <CardTitle>All Vehicles</CardTitle>
               <CardDescription>
-                {!searchParams.get('vehicleId') && `${vehicles.length} total vehicles registered`}
+                {filteredVehicles.length} of {vehicles.length} vehicles registered
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search vehicles..."
+                placeholder="Search by number, type, device..."
                 className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="all">All types</option>
+              <option value="car">Car</option>
+              <option value="bike">Bike</option>
+              <option value="bus">Bus</option>
+              <option value="truck">Truck</option>
+              <option value="auto">Auto</option>
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="all">Any status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="number-az">Number A→Z</option>
+            </select>
+            {(typeFilter !== "all" || statusFilter !== "all" || sortBy !== "newest") && (
+              <button
+                onClick={() => { setTypeFilter("all"); setStatusFilter("all"); setSortBy("newest"); }}
+                className="flex items-center gap-1 h-8 px-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <X className="h-3 w-3" /> Clear filters
+              </button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -257,7 +317,7 @@ export default function VehiclesPage() {
             </div>
           ) : filteredVehicles.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              {searchQuery ? "No vehicles found matching your search" : "No vehicles found"}
+              {(searchQuery || typeFilter !== "all" || statusFilter !== "all") ? "No vehicles match the active filters" : "No vehicles found"}
             </p>
           ) : (
             <div className="rounded-md border">

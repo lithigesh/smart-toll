@@ -54,6 +54,7 @@ export interface AuthContextType {
     name: string;
     email: string;
     password: string;
+    phone: string;
   }) => Promise<{ success: boolean; error?: string; message?: string }>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<string>;

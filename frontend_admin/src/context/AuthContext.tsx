@@ -21,20 +21,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check for existing authentication on mount
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       const token = localStorage.getItem('adminToken');
       const storedAdmin = localStorage.getItem('admin');
 
       if (token && storedAdmin) {
+        // Local-fallback tokens cannot be verified against the backend — trust as-is
+        if (token.startsWith('local-admin-token-')) {
+          try {
+            const admin = JSON.parse(storedAdmin) as Admin;
+            setAuthState({ admin, token, isAuthenticated: true, isLoading: false });
+          } catch {
+            clearAuth();
+          }
+          return;
+        }
+
+        // Verify the JWT against the backend (same pattern as user frontend)
         try {
-          const admin = JSON.parse(storedAdmin) as Admin;
-          setAuthState({
-            admin,
-            token,
-            isAuthenticated: true,
-            isLoading: false,
+          const response = await fetch(API_ENDPOINTS.admin.verify, {
+            headers: { Authorization: `Bearer ${token}` },
           });
+
+          if (response.ok) {
+            const admin = JSON.parse(storedAdmin) as Admin;
+            setAuthState({ admin, token, isAuthenticated: true, isLoading: false });
+          } else {
+            clearAuth();
+          }
         } catch {
+          // Network error — clear stale session so API calls don't fail silently
           clearAuth();
         }
       } else {

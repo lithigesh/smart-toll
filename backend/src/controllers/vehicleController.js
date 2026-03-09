@@ -32,10 +32,15 @@ const getVehicleById = asyncErrorHandler(async (req, res) => {
 
 const addVehicle = asyncErrorHandler(async (req, res) => {
   const userId = req.user.id;
+  const typeMap = {
+    car: 'Car', bike: 'Bike', truck: 'Truck',
+    bus: 'Bus', other: 'Other',
+  };
+  const rawType = req.body.vehicle_type || 'car';
   const vehicleData = {
     user_id: userId,
     vehicle_number: req.body.license_plate,
-    vehicle_type: req.body.vehicle_type || 'car',
+    vehicle_type: typeMap[rawType.toLowerCase()] || rawType,
     model: req.body.model ? `${req.body.make} ${req.body.model}`.trim() : req.body.make,
     device_id: req.body.device_id || `QR-${Math.random().toString(36).substr(2, 10).toUpperCase()}`
   };
@@ -65,7 +70,13 @@ const updateVehicle = asyncErrorHandler(async (req, res) => {
   }
   const mappedUpdates = {};
   if (updateData.license_plate) mappedUpdates.vehicle_number = updateData.license_plate;
-  if (updateData.vehicle_type) mappedUpdates.vehicle_type = updateData.vehicle_type;
+  if (updateData.vehicle_type) {
+    const typeMap = {
+      car: 'Car', bike: 'Bike', truck: 'Truck',
+      bus: 'Bus', other: 'Other',
+    };
+    mappedUpdates.vehicle_type = typeMap[updateData.vehicle_type.toLowerCase()] || updateData.vehicle_type;
+  }
   if (updateData.model || updateData.make) {
     mappedUpdates.model = updateData.model ? `${updateData.make || ''} ${updateData.model}`.trim() : updateData.make;
   }

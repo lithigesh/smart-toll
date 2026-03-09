@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Car, IndianRupee, Edit, Save, X } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Car, IndianRupee, Edit, Save, X, Search, SlidersHorizontal } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,6 +23,8 @@ export default function VehicleRatesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("type-az");
 
   const fetchRates = useCallback(async () => {
     try {
@@ -151,6 +153,21 @@ export default function VehicleRatesPage() {
     return colors[type?.toLowerCase()] || "bg-gray-100 text-gray-600";
   };
 
+  const filteredRates = useMemo(() => {
+    return rates
+      .filter((r) =>
+        !searchQuery ||
+        r.vehicle_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortBy === "type-az") return a.vehicle_type.localeCompare(b.vehicle_type);
+        if (sortBy === "rate-high") return b.rate - a.rate;
+        if (sortBy === "rate-low") return a.rate - b.rate;
+        return 0;
+      });
+  }, [rates, searchQuery, sortBy]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -178,10 +195,41 @@ export default function VehicleRatesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Toll Rates</CardTitle>
-          <CardDescription>
-            Set the toll amount for each vehicle type
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <CardTitle>Toll Rates</CardTitle>
+              <CardDescription>Set the toll amount for each vehicle type</CardDescription>
+            </div>
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search vehicle type..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="type-az">Type A→Z</option>
+              <option value="rate-high">Rate high→low</option>
+              <option value="rate-low">Rate low→high</option>
+            </select>
+            {(searchQuery || sortBy !== "type-az") && (
+              <button
+                onClick={() => { setSearchQuery(""); setSortBy("type-az"); }}
+                className="flex items-center gap-1 h-8 px-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <X className="h-3 w-3" /> Clear
+              </button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {error ? (
@@ -193,6 +241,10 @@ export default function VehicleRatesPage() {
           {rates.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               No vehicle rates configured
+            </p>
+          ) : filteredRates.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No rates match your search
             </p>
           ) : (
             <div className="rounded-md border">
@@ -206,7 +258,7 @@ export default function VehicleRatesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rates.map((rate) => (
+                  {filteredRates.map((rate) => (
                     <TableRow key={rate.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">

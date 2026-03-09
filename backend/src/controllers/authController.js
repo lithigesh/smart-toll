@@ -25,10 +25,16 @@ const supabase = createClient(
 const register = asyncErrorHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
 
-  // Check if user already exists
+  // Check if user already exists by email
   const existingUser = await User.findByEmail(email);
   if (existingUser) {
     throw new ConflictError('User with this email already exists');
+  }
+
+  // Check if phone is already registered
+  const existingPhone = await User.findByPhone(phone);
+  if (existingPhone) {
+    throw new ConflictError('An account with this phone number already exists');
   }
 
   // Create user using User model (handles password hashing and wallet creation)
@@ -36,7 +42,7 @@ const register = asyncErrorHandler(async (req, res) => {
     name,
     email,
     password,
-    phone: phone || '0000000000' // Default phone if not provided
+    phone
   });
 
   // Generate tokens

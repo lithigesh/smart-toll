@@ -38,6 +38,12 @@ const validateUserRegistration = [
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
+
+  body('phone')
+    .notEmpty()
+    .withMessage('Phone number is required')
+    .matches(/^\d{10}$/)
+    .withMessage('Phone number must be exactly 10 digits'),
   
   body('password')
     .isLength({ min: 8 })
@@ -80,7 +86,7 @@ const validateVehicleRegistration = [
   body('vehicle_type')
     .optional()
     .trim()
-    .isIn(['car', 'truck', 'bus', 'motorcycle', 'auto', 'other'])
+    .isIn(['car', 'truck', 'bus', 'bike', 'other'])
     .withMessage('Invalid vehicle type'),
 
   body('device_id')
@@ -123,8 +129,15 @@ const validateVehicle = [
   body('vehicle_type')
     .optional()
     .trim()
-    .isIn(['Car', 'Truck', 'Bus', 'Bike', 'car', 'truck', 'bus', 'bike', 'other'])
-    .withMessage('Invalid vehicle type'),
+    .customSanitizer(value => {
+      if (!value) return value;
+      const map = {
+        car: 'Car', bike: 'Bike', truck: 'Truck', bus: 'Bus', other: 'Other',
+      };
+      return map[value.toLowerCase()] || value;
+    })
+    .isIn(['Car', 'Bike', 'Truck', 'Bus', 'Other'])
+    .withMessage('Invalid vehicle type. Accepted: Car, Bike, Truck, Bus, Other'),
 
   body('make')
     .optional()

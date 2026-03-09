@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Search, Calendar, MapPin, Car, MoreHorizontal } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Search, Calendar, MapPin, Car, MoreHorizontal, SlidersHorizontal, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -31,6 +31,11 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
   const [analytics, setAnalytics] = useState({ totalTransactions: 0, totalRevenue: 0 });
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isTransactionDetailsOpen, setIsTransactionDetailsOpen] = useState(false);
@@ -88,12 +93,35 @@ export default function TransactionsPage() {
     fetchTransactions();
   }, [fetchTransactions]);
 
-  const filteredTransactions = transactions.filter((transaction) =>
-    transaction.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    transaction.toll_location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    transaction.vehicle?.vehicle_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    transaction.id?.toString().toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTransactions = useMemo(() => {
+    const now = new Date();
+    return transactions
+      .filter((t) => {
+        const matchSearch =
+          !searchQuery ||
+          t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.toll_location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.vehicle?.vehicle_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.id?.toString().toLowerCase().includes(searchQuery.toLowerCase());
+        const matchStatus = statusFilter === "all" || t.status === statusFilter;
+        let matchDate = true;
+        if (dateFilter !== "all") {
+          const days = dateFilter === "today" ? 1 : dateFilter === "7d" ? 7 : 30;
+          const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+          matchDate = new Date(t.created_at) >= cutoff;
+        }
+        const matchMin = !minAmount || t.amount >= Number(minAmount);
+        const matchMax = !maxAmount || t.amount <= Number(maxAmount);
+        return matchSearch && matchStatus && matchDate && matchMin && matchMax;
+      })
+      .sort((a, b) => {
+        if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        if (sortBy === "amount-high") return b.amount - a.amount;
+        if (sortBy === "amount-low") return a.amount - b.amount;
+        return 0;
+      });
+  }, [transactions, searchQuery, statusFilter, dateFilter, minAmount, maxAmount, sortBy]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, "default" | "secondary" | "destructive"> = {
@@ -211,7 +239,7 @@ export default function TransactionsPage() {
             <div>
               <CardTitle>All Toll Transactions</CardTitle>
               <CardDescription>
-                {filteredTransactions.length} transactions
+                {filteredTransactions.length} of {transactions.length} transactions
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-64">
@@ -224,6 +252,61 @@ export default function TransactionsPage() {
               />
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="all">All status</option>
+              <option value="completed">Completed</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="all">All time</option>
+              <option value="today">Today</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="amount-high">Amount high→low</option>
+              <option value="amount-low">Amount low→high</option>
+            </select>
+            <Input
+              type="number"
+              placeholder="Min ₹"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+              className="h-8 w-20 text-xs"
+            />
+            <Input
+              type="number"
+              placeholder="Max ₹"
+              value={maxAmount}
+              onChange={(e) => setMaxAmount(e.target.value)}
+              className="h-8 w-20 text-xs"
+            />
+            {(statusFilter !== "all" || dateFilter !== "all" || sortBy !== "newest" || minAmount || maxAmount) && (
+              <button
+                onClick={() => { setStatusFilter("all"); setDateFilter("all"); setSortBy("newest"); setMinAmount(""); setMaxAmount(""); }}
+                className="flex items-center gap-1 h-8 px-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <X className="h-3 w-3" /> Clear filters
+              </button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {error ? (
@@ -232,7 +315,7 @@ export default function TransactionsPage() {
             </div>
           ) : filteredTransactions.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              No transactions found
+              {(searchQuery || statusFilter !== "all" || dateFilter !== "all" || minAmount || maxAmount) ? "No transactions match the active filters" : "No transactions found"}
             </p>
           ) : (
             <div className="rounded-md border overflow-y-auto max-h-96">

@@ -18,7 +18,7 @@ interface FormData {
 
 const EMPTY_FORM: FormData = { license_plate: '', device_id: '', vehicle_type: 'Car' };
 
-const VEHICLE_TYPES = ['Car', 'Motorcycle', 'Truck', 'Bus'];
+const VEHICLE_TYPES = ['Car', 'Bike', 'Truck', 'Bus'];
 
 function getVehicleTypeIcon(type?: string) {
   switch (type?.toLowerCase()) {
@@ -146,10 +146,10 @@ function VehicleModal({ mode, initialData = EMPTY_FORM, vehicleId, token, onClos
                 name="device_id"
                 value={formData.device_id}
                 onChange={handleChange}
-                placeholder="e.g., ESP32-001"
+                placeholder="e.g., A4:C3:F0:1B:9E:7D"
                 required
               />
-              <p className="text-xs text-gray-400">Unique ID of the ESP32 device</p>
+              <p className="text-xs text-gray-400">MAC address of the ESP32 device (found on the device label)</p>
             </div>
 
             <div className="space-y-1.5">

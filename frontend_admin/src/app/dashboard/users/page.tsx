@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Search, MoreHorizontal, Mail, Phone, Calendar } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Search, MoreHorizontal, Mail, Phone, Calendar, SlidersHorizontal, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -30,6 +30,9 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [phoneFilter, setPhoneFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isTransactionsDialogOpen, setIsTransactionsDialogOpen] = useState(false);
@@ -69,12 +72,35 @@ export default function UsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.phone?.includes(searchQuery)
-  );
+  const filteredUsers = useMemo(() => {
+    const now = new Date();
+    return users
+      .filter((user) => {
+        const matchSearch =
+          !searchQuery ||
+          user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.phone?.includes(searchQuery);
+        const matchPhone =
+          phoneFilter === "all" ||
+          (phoneFilter === "with" && !!user.phone) ||
+          (phoneFilter === "without" && !user.phone);
+        let matchDate = true;
+        if (dateFilter !== "all") {
+          const days = dateFilter === "7d" ? 7 : dateFilter === "30d" ? 30 : 90;
+          const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+          matchDate = new Date(user.created_at) >= cutoff;
+        }
+        return matchSearch && matchPhone && matchDate;
+      })
+      .sort((a, b) => {
+        if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        if (sortBy === "name-az") return (a.name || "").localeCompare(b.name || "");
+        if (sortBy === "name-za") return (b.name || "").localeCompare(a.name || "");
+        return 0;
+      });
+  }, [users, searchQuery, dateFilter, phoneFilter, sortBy]);
 
   if (loading) {
     return (
@@ -169,18 +195,58 @@ export default function UsersPage() {
             <div>
               <CardTitle>All Users</CardTitle>
               <CardDescription>
-                {users.length} total users registered
+                {filteredUsers.length} of {users.length} users
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search users..."
+                placeholder="Search by name, email, phone..."
                 className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+            <SlidersHorizontal className="h-4 w-4 text-muted-foreground shrink-0" />
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="all">All time</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </select>
+            <select
+              value={phoneFilter}
+              onChange={(e) => setPhoneFilter(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="all">Any phone</option>
+              <option value="with">Has phone</option>
+              <option value="without">No phone</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name-az">Name A→Z</option>
+              <option value="name-za">Name Z→A</option>
+            </select>
+            {(dateFilter !== "all" || phoneFilter !== "all" || sortBy !== "newest") && (
+              <button
+                onClick={() => { setDateFilter("all"); setPhoneFilter("all"); setSortBy("newest"); }}
+                className="flex items-center gap-1 h-8 px-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <X className="h-3 w-3" /> Clear filters
+              </button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -190,7 +256,7 @@ export default function UsersPage() {
             </div>
           ) : filteredUsers.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              {searchQuery ? "No users found matching your search" : "No users found"}
+              {(searchQuery || phoneFilter !== "all" || dateFilter !== "all") ? "No users match the active filters" : "No users found"}
             </p>
           ) : (
             <div className="rounded-md border">

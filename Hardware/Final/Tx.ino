@@ -227,19 +227,19 @@ void carControlTask(void *parameter) {
       char cmd = SerialBT.read();
 
       switch (cmd) {
-        case 'B':
+        case 'R':
           digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
           digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
           break;
-        case 'F':
+        case 'L':
           digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
           digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
           break;
-        case 'L':
+        case 'B':
           digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
           digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
           break;
-        case 'R':
+        case 'F':
           digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
           digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
           break;
