@@ -34,7 +34,7 @@
 #define MAX_GLITCH_METERS 50.0
 #define TOLL_POLE_RADIUS_METERS 10.0
 
-const char MAC_ID[] = "A4:C3:F0:1B:9E:7D";
+const char MAC_ID[] = "ESP32_4A:7F:2C:9D:1B:6E";
 
 // ---------------- OBJECTS ----------------
 TinyGPSPlus gps;
@@ -48,8 +48,8 @@ XBeeAddress64 destAddr(0x00000000, 0x0000FFFF);
 // ---------------- STORAGE ----------------
 double fenceLat[MAX_POINTS];
 double fenceLon[MAX_POINTS];
-bool   fenceTxEnable[MAX_POINTS];
-int    fenceCount = 0;
+bool fenceTxEnable[MAX_POINTS];
+int fenceCount = 0;
 
 // ---------------- STATE ----------------
 bool insideGeofence = false;
@@ -65,51 +65,97 @@ unsigned long lastDistancePrint = 0;
 
 // ---------------- UTILS ----------------
 double haversine(double lat1, double lon1, double lat2, double lon2) {
+
   const double R = 6371000.0;
+
   double dLat = radians(lat2 - lat1);
   double dLon = radians(lon2 - lon1);
 
   lat1 = radians(lat1);
   lat2 = radians(lat2);
 
-  double a = sin(dLat / 2) * sin(dLat / 2) +
-             cos(lat1) * cos(lat2) *
-             sin(dLon / 2) * sin(dLon / 2);
+  double a = sin(dLat/2)*sin(dLat/2) +
+             cos(lat1)*cos(lat2) *
+             sin(dLon/2)*sin(dLon/2);
 
-  return 2 * R * atan2(sqrt(a), sqrt(1 - a));
+  return 2 * R * atan2(sqrt(a), sqrt(1-a));
 }
 
 double distanceToPolyline(double lat, double lon) {
+
   double minDist = 1e9;
-  for (int i = 0; i < fenceCount; i++) {
-    double d = haversine(lat, lon, fenceLat[i], fenceLon[i]);
-    if (d < minDist) minDist = d;
+
+  for(int i=0;i<fenceCount;i++){
+    double d = haversine(lat,lon,fenceLat[i],fenceLon[i]);
+    if(d < minDist) minDist = d;
   }
+
   return minDist;
+}
+
+// ---------------- SD READ ----------------
+double readDistanceFromSD() {
+
+  File file = SD.open("/distance.txt");
+
+  if (!file) {
+    Serial.println("No previous distance file");
+    return 0.0;
+  }
+
+  String value = file.readStringUntil('\n');
+  file.close();
+
+  double d = value.toDouble();
+
+  Serial.print("Previous stored distance: ");
+  Serial.println(d,2);
+
+  return d;
+}
+
+// ---------------- SD WRITE ----------------
+void saveDistanceToSD(double distance) {
+
+  File file = SD.open("/distance.txt", FILE_WRITE);
+
+  if (!file) {
+    Serial.println("SD WRITE FAILED");
+    return;
+  }
+
+  file.seek(0);
+  file.print(distance,2);
+  file.println();
+
+  file.close();
+
+  Serial.println("Distance saved to SD");
 }
 
 // ---------------- ZIGBEE TX ----------------
 void sendZigBeePayload() {
 
   unsigned long durationSec = (millis() - tripStartTime) / 1000;
+
   char payload[120];
 
-  snprintf(payload, sizeof(payload),
+  snprintf(payload,sizeof(payload),
            "<%s|%.6f|%.6f|%.2f|%lu|OK>",
-           MAC_ID, startLat, startLon, totalDistance, durationSec);
+           MAC_ID,startLat,startLon,totalDistance,durationSec);
 
-  ZBTxRequest tx(destAddr, (uint8_t*)payload, strlen(payload));
+  ZBTxRequest tx(destAddr,(uint8_t*)payload,strlen(payload));
   xbee.send(tx);
 
   Serial.println("  ----------------------------");
   Serial.println("  [PACKET TRANSMITTED]");
-  Serial.print  ("  Payload  : ");
+  Serial.print("  Payload  : ");
   Serial.println(payload);
-  Serial.print  ("  Distance : ");
-  Serial.print  (totalDistance, 2);
+  Serial.print("  Distance : ");
+  Serial.print(totalDistance,2);
   Serial.println(" km");
-  Serial.print  ("  Duration : ");
-  Serial.print  (durationSec);
+  Serial.print("  Duration : ");
+  Serial.print(durationSec);
   Serial.println(" s");
   Serial.println("  ----------------------------");
 }
@@ -117,24 +163,30 @@ void sendZigBeePayload() {
 // ---------------- GPS PROCESS ----------------
 void processGPS() {
 
-  if (!gps.location.isValid()) return;
+  if(!gps.location.isValid()) return;
 
   double lat = gps.location.lat();
   double lon = gps.location.lng();
 
-  double geoDist = distanceToPolyline(lat, lon);
+  double geoDist = distanceToPolyline(lat,lon);
   bool nowInside = (geoDist <= GEOFENCE_THRESHOLD_METERS);
 
   // ENTER
-  if (nowInside && !insideGeofence) {
+  if(nowInside && !insideGeofence){
+
     insideGeofence = true;
     tripActive = true;
+
     startLat = lat;
     startLon = lon;
+
     prevLat = lat;
     prevLon = lon;
-    totalDistance = 0;
+
+    totalDistance = readDistanceFromSD();
+
     txAlreadySent = false;
+
     tripStartTime = millis();
     lastDistancePrint = millis();
 
@@ -142,49 +194,51 @@ void processGPS() {
     Serial.println("==============================");
     Serial.println("   TOLL ROAD ENTERED");
     Serial.println("==============================");
-    Serial.print  ("   Start : ");
-    Serial.print  (lat, 6);
-    Serial.print  (", ");
-    Serial.println(lon, 6);
-    Serial.println("   Distance: 0.00 km");
-    Serial.println("------------------------------");
   }
 
   // INSIDE
-  if (tripActive && nowInside) {
+  if(tripActive && nowInside){
 
-    double d = haversine(prevLat, prevLon, lat, lon);
-    if (d >= MIN_VALID_MOVE_METERS && d <= MAX_GLITCH_METERS) {
+    double d = haversine(prevLat,prevLon,lat,lon);
+
+    if(d >= MIN_VALID_MOVE_METERS && d <= MAX_GLITCH_METERS){
       totalDistance += d;
     }
 
-    // Edge Case: trades off distance updates with system failure
     prevLat = lat;
     prevLon = lon;
 
-    // Print distance every 1 second (1 m displayed as 1 km for demo)
-    if (millis() - lastDistancePrint >= 1000) {
+    if(millis() - lastDistancePrint >= 1000){
       Serial.print("   Distance Travelled : ");
-      Serial.print(totalDistance, 2);
+      Serial.print(totalDistance,2);
       Serial.println(" km");
       lastDistancePrint = millis();
     }
 
-    for (int i = 0; i < fenceCount; i++) {
-      if (fenceTxEnable[i] && !txAlreadySent) {
-        double poleDist = haversine(lat, lon, fenceLat[i], fenceLon[i]);
-        if (poleDist <= TOLL_POLE_RADIUS_METERS) {
+    for(int i=0;i<fenceCount;i++){
+
+      if(fenceTxEnable[i] && !txAlreadySent){
+
+        double poleDist = haversine(lat,lon,fenceLat[i],fenceLon[i]);
+
+        if(poleDist <= TOLL_POLE_RADIUS_METERS){
+
           Serial.println();
           Serial.println("==============================");
           Serial.println("   TOLL ZONE ENTERED");
           Serial.println("   Transmitting packet...");
           Serial.println("==============================");
+
           sendZigBeePayload();
+
           txAlreadySent = true;
+
           totalDistance = 0;
           lastDistancePrint = millis();
+
           Serial.println("   Resuming distance tracking...");
           Serial.println("------------------------------");
+
           break;
         }
       }
@@ -192,60 +246,75 @@ void processGPS() {
   }
 
   // EXIT
-  if (!nowInside && insideGeofence) {
+  if(!nowInside && insideGeofence){
+
     insideGeofence = false;
     tripActive = false;
 
     Serial.println();
     Serial.println("==============================");
     Serial.println("   TOLL ROAD EXITED");
-    Serial.print  ("   Final Distance : ");
-    Serial.print  (totalDistance, 2);
+
+    Serial.print("   Final Distance : ");
+    Serial.print(totalDistance,2);
     Serial.println(" km");
+
+    saveDistanceToSD(totalDistance);
+
     Serial.println("==============================");
     Serial.println();
   }
 }
 
-// ---------------- TASK 1: GPS + XBee ----------------
-void gpsXbeeTask(void *parameter) {
-  while (true) {
-    while (gpsSerial.available()) {
-      if (gps.encode(gpsSerial.read())) {
+// ---------------- TASK 1 ----------------
+void gpsXbeeTask(void *parameter){
+
+  while(true){
+
+    while(gpsSerial.available()){
+      if(gps.encode(gpsSerial.read())){
         processGPS();
       }
     }
+
     vTaskDelay(5 / portTICK_PERIOD_MS);
   }
 }
 
-// ---------------- TASK 2: CAR CONTROL ----------------
-void carControlTask(void *parameter) {
-  while (true) {
+// ---------------- TASK 2 ----------------
+void carControlTask(void *parameter){
 
-    if (SerialBT.available()) {
+  while(true){
+
+    if(SerialBT.available()){
+
       char cmd = SerialBT.read();
 
-      switch (cmd) {
+      switch(cmd){
+
         case 'R':
-          digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-          digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
+          digitalWrite(IN1,HIGH); digitalWrite(IN2,LOW);
+          digitalWrite(IN3,HIGH); digitalWrite(IN4,LOW);
           break;
+
         case 'L':
-          digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
-          digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
+          digitalWrite(IN1,LOW); digitalWrite(IN2,HIGH);
+          digitalWrite(IN3,LOW); digitalWrite(IN4,HIGH);
           break;
+
         case 'B':
-          digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-          digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
+          digitalWrite(IN1,HIGH); digitalWrite(IN2,LOW);
+          digitalWrite(IN3,LOW); digitalWrite(IN4,HIGH);
           break;
+
         case 'F':
-          digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
-          digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
+          digitalWrite(IN1,LOW); digitalWrite(IN2,HIGH);
+          digitalWrite(IN3,HIGH); digitalWrite(IN4,LOW);
           break;
+
         case 'S':
-          digitalWrite(IN1, LOW); digitalWrite(IN2, LOW);
-          digitalWrite(IN3, LOW); digitalWrite(IN4, LOW);
+          digitalWrite(IN1,LOW); digitalWrite(IN2,LOW);
+          digitalWrite(IN3,LOW); digitalWrite(IN4,LOW);
           break;
       }
     }
@@ -255,7 +324,8 @@ void carControlTask(void *parameter) {
 }
 
 // ---------------- SETUP ----------------
-void setup() {
+void setup(){
+
   Serial.begin(115200);
   delay(500);
 
@@ -264,65 +334,53 @@ void setup() {
   Serial.println("   SMART TOLL - TRANSMITTER");
   Serial.println("==============================");
 
-  // UARTs
-  gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
-  XBeeSerial.begin(9600, SERIAL_8N1, XBEE_RX, XBEE_TX);
+  gpsSerial.begin(9600,SERIAL_8N1,GPS_RX,GPS_TX);
+  XBeeSerial.begin(9600,SERIAL_8N1,XBEE_RX,XBEE_TX);
+
   xbee.setSerial(XBeeSerial);
-  Serial.println("   GPS Serial  : OK");
-  Serial.println("   XBee Serial : OK");
 
-  // Bluetooth
   SerialBT.begin("bt_Car");
-  Serial.println("   Bluetooth   : bt_Car");
 
-  // Motors
-  pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
-  pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
-  pinMode(ENA, OUTPUT); pinMode(ENB, OUTPUT);
-  analogWrite(ENA, 200);
-  analogWrite(ENB, 200);
-  Serial.println("   Motors      : OK");
+  pinMode(IN1,OUTPUT); pinMode(IN2,OUTPUT);
+  pinMode(IN3,OUTPUT); pinMode(IN4,OUTPUT);
+  pinMode(ENA,OUTPUT); pinMode(ENB,OUTPUT);
 
-  // SD
-  if (!SD.begin(SD_CS)) {
-    Serial.println("   SD Card     : FAILED - halting");
-    while (true);
+  analogWrite(ENA,200);
+  analogWrite(ENB,200);
+
+  if(!SD.begin(SD_CS)){
+    Serial.println("SD FAIL");
+    while(true);
   }
-  Serial.println("   SD Card     : OK");
 
   File f = SD.open("/geofence.csv");
+
   char line[80];
 
-  while (f.available() && fenceCount < MAX_POINTS) {
-    int len = f.readBytesUntil('\n', line, sizeof(line) - 1);
+  while(f.available() && fenceCount < MAX_POINTS){
+
+    int len = f.readBytesUntil('\n',line,sizeof(line)-1);
     line[len] = '\0';
 
-    char *p1 = strtok(line, ",");
-    char *p2 = strtok(NULL, ",");
-    char *p3 = strtok(NULL, ",");
+    char *p1 = strtok(line,",");
+    char *p2 = strtok(NULL,",");
+    char *p3 = strtok(NULL,",");
 
-    if (p1 && p2 && p3) {
+    if(p1 && p2 && p3){
+
       fenceLon[fenceCount] = atof(p1);
       fenceLat[fenceCount] = atof(p2);
-      fenceTxEnable[fenceCount] = (strcasecmp(p3, "true") == 0);
+      fenceTxEnable[fenceCount] = (strcasecmp(p3,"true")==0);
+
       fenceCount++;
     }
   }
+
   f.close();
 
-  Serial.print  ("   Geofence    : ");
-  Serial.print  (fenceCount);
-  Serial.println(" points loaded");
-  Serial.println("==============================");
-  Serial.println("   System Ready. Waiting...");
-  Serial.println("==============================");
-  Serial.println();
-
-  // TASKS
-  xTaskCreatePinnedToCore(gpsXbeeTask, "GPS_XBEE", 8192, NULL, 1, NULL, 0);
-  xTaskCreatePinnedToCore(carControlTask, "CAR", 4096, NULL, 2, NULL, 1);
+  xTaskCreatePinnedToCore(gpsXbeeTask,"GPS_XBEE",8192,NULL,1,NULL,0);
+  xTaskCreatePinnedToCore(carControlTask,"CAR",4096,NULL,2,NULL,1);
 }
 
-void loop() {
-  // FreeRTOS owns execution
+void loop(){
 }
